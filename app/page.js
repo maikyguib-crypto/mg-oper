@@ -1,32 +1,53 @@
 'use client'
+
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const db = supabase()
 
+function localDate() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export default function Home() {
   const [session, setSession] = useState(null)
   const [company, setCompany] = useState(null)
   const [members, setMembers] = useState([])
-  const [tasks, setTasks] = useState([])
   const [sectors, setSectors] = useState([])
-  const [tab, setTab] = useState('dashboard')
+  const [tasks, setTasks] = useState([])
+  const [taskMembers, setTaskMembers] = useState([])
+  const [logs, setLogs] = useState([])
+  const [sessions, setSessions] = useState([])
+
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('dashboard')
   const [msg, setMsg] = useState('')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
 
+  const [sectorName, setSectorName] = useState('')
   const [memberName, setMemberName] = useState('')
   const [memberSector, setMemberSector] = useState('')
-  const [sectorName, setSectorName] = useState('')
 
   const [taskTitle, setTaskTitle] = useState('')
-  const [taskMember, setTaskMember] = useState('')
   const [taskSector, setTaskSector] = useState('')
   const [taskGoal, setTaskGoal] = useState('')
   const [taskPriority, setTaskPriority] = useState('normal')
+  const [taskDate, setTaskDate] = useState(localDate())
+  const [taskNotes, setTaskNotes] = useState('')
+  const [taskDeadline, setTaskDeadline] = useState('')
+  const [selectedMembers, setSelectedMembers] = useState([])
+
+  const [viewDate, setViewDate] = useState(localDate())
+  const [filterMember, setFilterMember] = useState('')
+  const [filterSector, setFilterSector] = useState('')
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     db.auth.getSession().then(({ data }) => {
@@ -42,17 +63,40 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (session) load()
-    else {
+    if (session) {
+      loadAll()
+    } else {
       setCompany(null)
       setMembers([])
       setTasks([])
       setSectors([])
+      setTaskMembers([])
+      setLogs([])
+      setSessions([])
     }
   }, [session])
 
-  async function load() {
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick(x => x + 1)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!company) return
+
+    const timer = setInterval(() => {
+      refreshProduction()
+    }, 5000)
+
+    return () => clearInterval(timer)
+  }, [company])
+
+  async function loadAll() {
     setLoading(true)
+    setMsg('')
 
     const { data: userData } = await db.auth.getUser()
     const uid = userData.user?.id
@@ -62,11 +106,17 @@ export default function Home() {
       return
     }
 
-    const { data: companies } = await db
+    const { data: companies, error: companyError } = await db
       .from('companies')
       .select('*')
       .eq('owner_id', uid)
       .limit(1)
+
+    if (companyError) {
+      setMsg(companyError.message)
+      setLoading(false)
+      return
+    }
 
     const c = companies?.[0]
 
@@ -78,32 +128,121 @@ export default function Home() {
 
     setCompany(c)
 
-    const [
-      { data: memberData },
-      { data: taskData },
-      { data: sectorData }
-    ] = await Promise.all([
-      db.from('company_members').select('*').eq('company_id', c.id).order('name'),
-      db.from('tasks').select('*').eq('company_id', c.id).order('created_at', { ascending: false }),
-      db.from('sectors').select('*').eq('company_id', c.id).order('name')
+    const [memberResult, sectorResult, taskResult] = await Promise.all([
+      db
+        .from('company_members')
+        .select('*')
+        .eq('company_id', c.id)
+        .order('name'),
+
+      db
+        .from('sectors')
+        .select('*')
+        .eq('company_id', c.id)
+        .order('name'),
+
+      db
+        .from('tasks')
+        .select('*')
+        .eq('company_id', c.id)
+        .order('created_at', { ascending: false })
     ])
 
-    setMembers(memberData || [])
-    setTasks(taskData || [])
-    setSectors(sectorData || [])
+    if (memberResult.error) setMsg(memberResult.error.message)
+    if (sectorResult.error) setMsg(sectorResult.error.message)
+    if (taskResult.error) setMsg(taskResult.error.message)
+
+    setMembers(memberResult.data || [])
+    setSectors(sectorResult.data || [])
+    setTasks(taskResult.data || [])
+
+    await loadProductionData(c.id)
+
     setLoading(false)
   }
 
-  async function signup() {
-    setMsg('')
-    const { error } = await db.auth.signUp({ email, password })
-    setMsg(error ? error.message : 'Conta criada. Confirme seu e-mail se solicitado.')
+  async function loadProductionData(companyId) {
+    const [tmResult, logResult, sessionResult] = await Promise.all([
+      db.from('task_members').select('*'),
+
+      db
+        .from('production_logs')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false }),
+
+      db
+        .from('production_sessions')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('started_at', { ascending: false })
+    ])
+
+    if (tmResult.error) setMsg(tmResult.error.message)
+    if (logResult.error) setMsg(logResult.error.message)
+    if (sessionResult.error) setMsg(sessionResult.error.message)
+
+    setTaskMembers(tmResult.data || [])
+    setLogs(logResult.data || [])
+    setSessions(sessionResult.data || [])
+  }
+
+  async function refreshProduction() {
+    if (!company) return
+
+    const [taskResult, tmResult, logResult, sessionResult] =
+      await Promise.all([
+        db
+          .from('tasks')
+          .select('*')
+          .eq('company_id', company.id)
+          .order('created_at', { ascending: false }),
+
+        db.from('task_members').select('*'),
+
+        db
+          .from('production_logs')
+          .select('*')
+          .eq('company_id', company.id)
+          .order('created_at', { ascending: false }),
+
+        db
+          .from('production_sessions')
+          .select('*')
+          .eq('company_id', company.id)
+          .order('started_at', { ascending: false })
+      ])
+
+    if (!taskResult.error) setTasks(taskResult.data || [])
+    if (!tmResult.error) setTaskMembers(tmResult.data || [])
+    if (!logResult.error) setLogs(logResult.data || [])
+    if (!sessionResult.error) setSessions(sessionResult.data || [])
   }
 
   async function login() {
     setMsg('')
-    const { error } = await db.auth.signInWithPassword({ email, password })
+
+    const { error } = await db.auth.signInWithPassword({
+      email,
+      password
+    })
+
     if (error) setMsg(error.message)
+  }
+
+  async function signup() {
+    setMsg('')
+
+    const { error } = await db.auth.signUp({
+      email,
+      password
+    })
+
+    setMsg(
+      error
+        ? error.message
+        : 'Conta criada. Agora entre na sua conta.'
+    )
   }
 
   async function logout() {
@@ -123,8 +262,11 @@ export default function Home() {
       owner_id: uid
     })
 
-    if (error) setMsg(error.message)
-    else load()
+    if (error) {
+      setMsg(error.message)
+    } else {
+      await loadAll()
+    }
   }
 
   async function addSector() {
@@ -141,7 +283,7 @@ export default function Home() {
     }
 
     setSectorName('')
-    load()
+    await loadAll()
   }
 
   async function addMember() {
@@ -149,12 +291,17 @@ export default function Home() {
 
     const payload = {
       company_id: company.id,
-      name: memberName.trim()
+      name: memberName.trim(),
+      active: true
     }
 
-    if (memberSector) payload.sector_id = memberSector
+    if (memberSector) {
+      payload.sector_id = memberSector
+    }
 
-    const { error } = await db.from('company_members').insert(payload)
+    const { error } = await db
+      .from('company_members')
+      .insert(payload)
 
     if (error) {
       setMsg(error.message)
@@ -163,104 +310,1319 @@ export default function Home() {
 
     setMemberName('')
     setMemberSector('')
-    load()
+    await loadAll()
+  }
+
+  async function toggleMember(member) {
+    const activate = member.active === false
+
+    const ok = window.confirm(
+      activate
+        ? `Reativar ${member.name}?`
+        : `Desativar ${member.name}? O histórico será preservado.`
+    )
+
+    if (!ok) return
+
+    const { error } = await db
+      .from('company_members')
+      .update({ active: activate })
+      .eq('id', member.id)
+
+    if (error) {
+      setMsg(error.message)
+    } else {
+      await loadAll()
+    }
+  }
+
+  function toggleSelectedMember(id) {
+    setSelectedMembers(current =>
+      current.includes(id)
+        ? current.filter(x => x !== id)
+        : [...current, id]
+    )
   }
 
   async function addTask() {
-    if (!taskTitle.trim() || !company) return
+    setMsg('')
 
-    const member = members.find(x => x.id === taskMember)
+    if (!taskTitle.trim()) {
+      alert('Digite o nome do produto/tarefa.')
+      return
+    }
+
+    if (!selectedMembers.length) {
+      alert('Selecione pelo menos um funcionário.')
+      return
+    }
+
+    const selected = members.filter(m =>
+      selectedMembers.includes(m.id)
+    )
 
     const payload = {
       company_id: company.id,
       title: taskTitle.trim(),
       status: 'pending',
       priority: taskPriority,
-      schedule_date: new Date().toISOString().slice(0, 10)
+      schedule_date: taskDate,
+      quantity_done: 0,
+      notes: taskNotes.trim() || null,
+      assignee: selected.map(m => m.name).join(', ')
     }
 
-    if (taskGoal) payload.goal = taskGoal
-    if (taskSector) payload.sector_id = taskSector
-
-    if (member) {
-      payload.member_id = member.id
-      payload.assignee = member.name
+    if (taskSector) {
+      payload.sector_id = taskSector
     }
 
-    const { error } = await db.from('tasks').insert(payload)
+    if (taskGoal) {
+      payload.quantity_target = Number(taskGoal)
+      payload.goal = taskGoal
+    }
+
+    if (taskDeadline) {
+      payload.deadline_time = taskDeadline
+    }
+
+    if (selected[0]) {
+      payload.member_id = selected[0].id
+    }
+
+    const { data: created, error } = await db
+      .from('tasks')
+      .insert(payload)
+      .select()
+      .single()
 
     if (error) {
       setMsg(error.message)
       return
     }
 
+    const links = selectedMembers.map(memberId => ({
+      task_id: created.id,
+      member_id: memberId,
+      active: true
+    }))
+
+    const { error: linkError } = await db
+      .from('task_members')
+      .insert(links)
+
+    if (linkError) {
+      setMsg(linkError.message)
+      return
+    }
+
+    await addEvent(
+      created.id,
+      null,
+      'task_created',
+      'Tarefa criada'
+    )
+
     setTaskTitle('')
     setTaskGoal('')
-    setTaskMember('')
     setTaskSector('')
+    setTaskNotes('')
+    setTaskDeadline('')
     setTaskPriority('normal')
-    load()
+    setSelectedMembers([])
+    setViewDate(taskDate)
+
+    await loadAll()
   }
 
-  async function advance(task) {
-    const next =
-      task.status === 'pending'
-        ? 'in_progress'
-        : task.status === 'in_progress'
-        ? 'completed'
-        : 'pending'
-
-    await db.from('tasks').update({ status: next }).eq('id', task.id)
-    load()
+  async function addEvent(
+    taskId,
+    memberId,
+    type,
+    description
+  ) {
+    await db.from('task_events').insert({
+      company_id: company.id,
+      task_id: taskId,
+      member_id: memberId || null,
+      event_type: type,
+      description
+    })
   }
 
-  const stats = useMemo(() => ({
-    pending: tasks.filter(x => x.status === 'pending').length,
-    progress: tasks.filter(x => x.status === 'in_progress').length,
-    completed: tasks.filter(x => x.status === 'completed').length
-  }), [tasks])
+  function membersForTask(taskId) {
+    const ids = taskMembers
+      .filter(
+        x =>
+          x.task_id === taskId &&
+          x.active !== false
+      )
+      .map(x => x.member_id)
 
-  function sectorNameById(id) {
-    return sectors.find(x => x.id === id)?.name || 'Sem setor'
+    return members.filter(m =>
+      ids.includes(m.id)
+    )
   }
 
-  function statusName(status) {
-    if (status === 'pending') return 'Pendente'
-    if (status === 'in_progress') return 'Em andamento'
-    return 'Concluída'
+  function activeSessionsForTask(taskId) {
+    return sessions.filter(
+      s =>
+        s.task_id === taskId &&
+        !s.ended_at
+    )
   }
+
+  function memberIsWorking(taskId, memberId) {
+    return sessions.some(
+      s =>
+        s.task_id === taskId &&
+        s.member_id === memberId &&
+        !s.ended_at
+    )
+  }
+
+  function memberQuantity(taskId, memberId) {
+    return logs
+      .filter(
+        l =>
+          l.task_id === taskId &&
+          l.member_id === memberId
+      )
+      .reduce(
+        (sum, l) =>
+          sum + Number(l.quantity || 0),
+        0
+      )
+  }
+
+  async function startTask(task) {
+    const assigned = membersForTask(task.id)
+
+    if (!assigned.length) {
+      alert(
+        'Essa tarefa não possui funcionários vinculados.'
+      )
+      return
+    }
+
+    const existing = activeSessionsForTask(task.id)
+    const existingIds = existing.map(
+      x => x.member_id
+    )
+
+    const newSessions = assigned
+      .filter(
+        m => !existingIds.includes(m.id)
+      )
+      .map(m => ({
+        company_id: company.id,
+        task_id: task.id,
+        member_id: m.id
+      }))
+
+    if (newSessions.length) {
+      const { error } = await db
+        .from('production_sessions')
+        .insert(newSessions)
+
+      if (error) {
+        setMsg(error.message)
+        return
+      }
+    }
+
+    const now = new Date().toISOString()
+
+    const { error } = await db
+      .from('tasks')
+      .update({
+        status: 'in_progress',
+        started_at:
+          task.started_at || now,
+        production_started_at:
+          task.production_started_at || now
+      })
+      .eq('id', task.id)
+
+    if (error) {
+      setMsg(error.message)
+      return
+    }
+
+    await addEvent(
+      task.id,
+      null,
+      'production_started',
+      `${assigned.length} funcionário(s) iniciaram a produção`
+    )
+
+    await refreshProduction()
+  }
+
+  async function changeMemberProgress(
+    task,
+    member,
+    amount
+  ) {
+    setMsg('')
+
+    const currentTotal =
+      Number(task.quantity_done || 0)
+
+    const target =
+      Number(
+        task.quantity_target ||
+        task.goal ||
+        0
+      )
+
+    const currentMember =
+      memberQuantity(task.id, member.id)
+
+    let realAmount = amount
+
+    if (
+      amount < 0 &&
+      currentMember <= 0
+    ) {
+      return
+    }
+
+    if (
+      amount < 0 &&
+      currentMember + amount < 0
+    ) {
+      realAmount = -currentMember
+    }
+
+    if (
+      amount > 0 &&
+      target > 0 &&
+      currentTotal >= target
+    ) {
+      return
+    }
+
+    if (
+      amount > 0 &&
+      target > 0 &&
+      currentTotal + amount > target
+    ) {
+      realAmount =
+        target - currentTotal
+    }
+
+    if (realAmount === 0) return
+
+    const nextTotal =
+      Math.max(
+        0,
+        currentTotal + realAmount
+      )
+
+    const now =
+      new Date().toISOString()
+
+    const update = {
+      quantity_done: nextTotal,
+      completed_at: null
+    }
+
+    if (nextTotal === 0) {
+      update.status = 'pending'
+    } else if (
+      target > 0 &&
+      nextTotal >= target
+    ) {
+      update.status = 'completed'
+      update.completed_at = now
+      update.production_finished_at = now
+    } else {
+      update.status = 'in_progress'
+      update.started_at =
+        task.started_at || now
+      update.production_started_at =
+        task.production_started_at || now
+    }
+
+    const { error: taskError } = await db
+      .from('tasks')
+      .update(update)
+      .eq('id', task.id)
+
+    if (taskError) {
+      setMsg(taskError.message)
+      return
+    }
+
+    const { error: logError } = await db
+      .from('production_logs')
+      .insert({
+        company_id: company.id,
+        task_id: task.id,
+        member_id: member.id,
+        quantity: realAmount,
+        action_type:
+          realAmount > 0
+            ? 'progress'
+            : 'correction'
+      })
+
+    if (logError) {
+      setMsg(logError.message)
+      return
+    }
+
+    if (
+      realAmount > 0 &&
+      !memberIsWorking(
+        task.id,
+        member.id
+      )
+    ) {
+      await db
+        .from('production_sessions')
+        .insert({
+          company_id: company.id,
+          task_id: task.id,
+          member_id: member.id
+        })
+    }
+
+    if (
+      target > 0 &&
+      nextTotal >= target
+    ) {
+      await finishSessions(task.id)
+
+      await addEvent(
+        task.id,
+        member.id,
+        'task_completed',
+        `Meta concluída. Último registro por ${member.name}.`
+      )
+    }
+
+    await refreshProduction()
+  }
+
+  async function setMemberQuantity(
+    task,
+    member
+  ) {
+    const current =
+      memberQuantity(
+        task.id,
+        member.id
+      )
+
+    const answer =
+      window.prompt(
+        `Quanto ${member.name} produziu nesta tarefa?`,
+        String(current)
+      )
+
+    if (answer === null) return
+
+    const value =
+      Number(
+        String(answer).replace(',', '.')
+      )
+
+    if (
+      Number.isNaN(value) ||
+      value < 0
+    ) {
+      alert(
+        'Digite uma quantidade válida.'
+      )
+      return
+    }
+
+    const difference =
+      value - current
+
+    if (difference === 0) return
+
+    const taskCurrent =
+      Number(task.quantity_done || 0)
+
+    const target =
+      Number(
+        task.quantity_target ||
+        task.goal ||
+        0
+      )
+
+    let realDifference =
+      difference
+
+    if (
+      difference > 0 &&
+      target > 0 &&
+      taskCurrent + difference > target
+    ) {
+      realDifference =
+        target - taskCurrent
+    }
+
+    const nextTotal =
+      Math.max(
+        0,
+        taskCurrent + realDifference
+      )
+
+    const now =
+      new Date().toISOString()
+
+    const completed =
+      target > 0 &&
+      nextTotal >= target
+
+    const { error: taskError } =
+      await db
+        .from('tasks')
+        .update({
+          quantity_done: nextTotal,
+          status: completed
+            ? 'completed'
+            : nextTotal > 0
+            ? 'in_progress'
+            : 'pending',
+          started_at:
+            nextTotal > 0
+              ? task.started_at || now
+              : task.started_at,
+          production_started_at:
+            nextTotal > 0
+              ? task.production_started_at || now
+              : task.production_started_at,
+          completed_at:
+            completed ? now : null,
+          production_finished_at:
+            completed ? now : null
+        })
+        .eq('id', task.id)
+
+    if (taskError) {
+      setMsg(taskError.message)
+      return
+    }
+
+    const { error: logError } =
+      await db
+        .from('production_logs')
+        .insert({
+          company_id: company.id,
+          task_id: task.id,
+          member_id: member.id,
+          quantity: realDifference,
+          action_type: 'manual'
+        })
+
+    if (logError) {
+      setMsg(logError.message)
+      return
+    }
+
+    if (
+      realDifference > 0 &&
+      !memberIsWorking(
+        task.id,
+        member.id
+      )
+    ) {
+      await db
+        .from('production_sessions')
+        .insert({
+          company_id: company.id,
+          task_id: task.id,
+          member_id: member.id
+        })
+    }
+
+    if (completed) {
+      await finishSessions(task.id)
+    }
+
+    await refreshProduction()
+  }
+
+  async function completeTask(task) {
+    const target =
+      Number(
+        task.quantity_target ||
+        task.goal ||
+        0
+      )
+
+    const current =
+      Number(task.quantity_done || 0)
+
+    if (
+      target > 0 &&
+      current < target
+    ) {
+      const ok =
+        window.confirm(
+          `A tarefa está em ${current}/${target}. Deseja concluir mesmo assim?`
+        )
+
+      if (!ok) return
+    }
+
+    const now =
+      new Date().toISOString()
+
+    const { error } = await db
+      .from('tasks')
+      .update({
+        status: 'completed',
+        completed_at: now,
+        production_finished_at: now
+      })
+      .eq('id', task.id)
+
+    if (error) {
+      setMsg(error.message)
+      return
+    }
+
+    await finishSessions(task.id)
+
+    await addEvent(
+      task.id,
+      null,
+      'task_completed',
+      'Tarefa concluída'
+    )
+
+    await refreshProduction()
+  }
+
+  async function finishSessions(taskId) {
+    const active =
+      sessions.filter(
+        s =>
+          s.task_id === taskId &&
+          !s.ended_at
+      )
+
+    if (!active.length) return
+
+    const now =
+      new Date().toISOString()
+
+    for (const s of active) {
+      await db
+        .from('production_sessions')
+        .update({
+          ended_at: now
+        })
+        .eq('id', s.id)
+    }
+  }
+
+  async function addPerson(task) {
+    const current =
+      membersForTask(task.id)
+
+    const available =
+      members.filter(
+        m =>
+          m.active !== false &&
+          !current.some(
+            c => c.id === m.id
+          )
+      )
+
+    if (!available.length) {
+      alert(
+        'Todos os funcionários ativos já estão nesta tarefa.'
+      )
+      return
+    }
+
+    const list =
+      available
+        .map(
+          (m, i) =>
+            `${i + 1} - ${m.name}`
+        )
+        .join('\n')
+
+    const answer =
+      window.prompt(
+        `Quem deseja adicionar?\n\n${list}`
+      )
+
+    if (answer === null) return
+
+    const member =
+      available[
+        Number(answer) - 1
+      ]
+
+    if (!member) {
+      alert('Funcionário inválido.')
+      return
+    }
+
+    const existing =
+      taskMembers.find(
+        x =>
+          x.task_id === task.id &&
+          x.member_id === member.id
+      )
+
+    if (existing) {
+      const { error } = await db
+        .from('task_members')
+        .update({
+          active: true,
+          left_at: null,
+          joined_at:
+            new Date().toISOString()
+        })
+        .eq('id', existing.id)
+
+      if (error) {
+        setMsg(error.message)
+        return
+      }
+    } else {
+      const { error } = await db
+        .from('task_members')
+        .insert({
+          task_id: task.id,
+          member_id: member.id,
+          active: true
+        })
+
+      if (error) {
+        setMsg(error.message)
+        return
+      }
+    }
+
+    if (
+      task.status === 'in_progress'
+    ) {
+      await db
+        .from('production_sessions')
+        .insert({
+          company_id: company.id,
+          task_id: task.id,
+          member_id: member.id
+        })
+    }
+
+    await addEvent(
+      task.id,
+      member.id,
+      'member_added',
+      `${member.name} entrou na tarefa`
+    )
+
+    await refreshProduction()
+  }
+
+  async function removePerson(task) {
+    const current =
+      membersForTask(task.id)
+
+    if (current.length <= 1) {
+      alert(
+        'A tarefa precisa manter pelo menos um funcionário.'
+      )
+      return
+    }
+
+    const list =
+      current
+        .map(
+          (m, i) =>
+            `${i + 1} - ${m.name}`
+        )
+        .join('\n')
+
+    const answer =
+      window.prompt(
+        `Quem deseja retirar desta tarefa?\n\n${list}`
+      )
+
+    if (answer === null) return
+
+    const member =
+      current[
+        Number(answer) - 1
+      ]
+
+    if (!member) {
+      alert('Funcionário inválido.')
+      return
+    }
+
+    const link =
+      taskMembers.find(
+        x =>
+          x.task_id === task.id &&
+          x.member_id === member.id
+      )
+
+    if (link) {
+      const { error } = await db
+        .from('task_members')
+        .update({
+          active: false,
+          left_at:
+            new Date().toISOString()
+        })
+        .eq('id', link.id)
+
+      if (error) {
+        setMsg(error.message)
+        return
+      }
+    }
+
+    const activeSession =
+      sessions.find(
+        s =>
+          s.task_id === task.id &&
+          s.member_id === member.id &&
+          !s.ended_at
+      )
+
+    if (activeSession) {
+      await db
+        .from('production_sessions')
+        .update({
+          ended_at:
+            new Date().toISOString()
+        })
+        .eq(
+          'id',
+          activeSession.id
+        )
+    }
+
+    await addEvent(
+      task.id,
+      member.id,
+      'member_removed',
+      `${member.name} saiu da tarefa`
+    )
+
+    await refreshProduction()
+  }
+
+  async function deleteTask(task) {
+    const ok =
+      window.confirm(
+        `Excluir "${task.title}"?`
+      )
+
+    if (!ok) return
+
+    const { error } = await db
+      .from('tasks')
+      .delete()
+      .eq('id', task.id)
+
+    if (error) {
+      setMsg(error.message)
+    } else {
+      await loadAll()
+    }
+  }
+
+  function sectorById(id) {
+    return (
+      sectors.find(
+        s => s.id === id
+      )?.name ||
+      'Sem setor'
+    )
+  }
+
+  function memberById(id) {
+    return members.find(
+      m => m.id === id
+    )
+  }
+
+  function priorityName(p) {
+    if (p === 'high') return 'Alta'
+    if (p === 'low') return 'Baixa'
+    return 'Normal'
+  }
+
+  function isLate(task) {
+    if (
+      task.status === 'completed' ||
+      !task.deadline_time ||
+      task.schedule_date !== localDate()
+    ) {
+      return false
+    }
+
+    const now = new Date()
+
+    const [h, m] =
+      task.deadline_time
+        .split(':')
+
+    const deadline =
+      new Date()
+
+    deadline.setHours(
+      Number(h),
+      Number(m),
+      0,
+      0
+    )
+
+    return now > deadline
+  }
+
+  function printEmployeeDay(member) {
+    const list =
+      tasks.filter(
+        t =>
+          t.schedule_date ===
+            viewDate &&
+          membersForTask(
+            t.id
+          ).some(
+            m => m.id === member.id
+          )
+      )
+
+    if (!list.length) {
+      alert(
+        `${member.name} não possui tarefas nesta data.`
+      )
+      return
+    }
+
+    const totalProgramado =
+      list.reduce(
+        (sum, t) =>
+          sum +
+          Number(
+            t.quantity_target ||
+            t.goal ||
+            0
+          ),
+        0
+      )
+
+    const rows =
+      list.map(
+        (t, i) => `
+        <div style="
+          padding:16px 0;
+          border-bottom:1px solid #999;
+          page-break-inside:avoid;
+        ">
+          <div style="
+            font-size:19px;
+          ">
+            <b>
+              ${i + 1}. ${safe(t.title)}
+            </b>
+          </div>
+
+          <div style="
+            font-size:24px;
+            font-weight:bold;
+            margin-top:8px;
+          ">
+            QUANTIDADE:
+            ${safe(
+              String(
+                t.quantity_target ||
+                t.goal ||
+                '—'
+              )
+            )}
+          </div>
+
+          <div style="
+            margin-top:7px;
+          ">
+            Setor:
+            ${safe(
+              sectorById(
+                t.sector_id
+              )
+            )}
+          </div>
+
+          ${
+            t.deadline_time
+              ? `
+              <div>
+                Horário:
+                ${safe(
+                  t.deadline_time
+                    .slice(0, 5)
+                )}
+              </div>
+            `
+              : ''
+          }
+
+          ${
+            t.notes
+              ? `
+              <div>
+                Observação:
+                ${safe(t.notes)}
+              </div>
+            `
+              : ''
+          }
+
+          <div style="
+            margin-top:14px;
+            font-size:16px;
+          ">
+            ☐ Concluído
+          </div>
+        </div>
+      `
+      )
+      .join('')
+
+    printPage(`
+      <div style="
+        text-align:center;
+      ">
+        <h1 style="
+          margin-bottom:4px;
+        ">
+          MG Oper
+        </h1>
+
+        <h3 style="
+          margin-top:0;
+        ">
+          ${safe(company.name)}
+        </h3>
+      </div>
+
+      <hr>
+
+      <h2 style="
+        text-align:center;
+      ">
+        PROGRAMAÇÃO DO DIA
+      </h2>
+
+      <div style="
+        font-size:18px;
+        margin-bottom:15px;
+      ">
+        <b>Funcionário:</b>
+        ${safe(member.name)}
+        <br>
+
+        <b>Data:</b>
+        ${formatDate(viewDate)}
+      </div>
+
+      ${rows}
+
+      <div style="
+        margin-top:20px;
+        padding:15px;
+        border:2px solid #111;
+        font-size:21px;
+      ">
+        <b>
+          TOTAL PROGRAMADO:
+          ${totalProgramado}
+        </b>
+      </div>
+    `)
+  }
+
+  function printPage(html) {
+    const w =
+      window.open(
+        '',
+        '_blank'
+      )
+
+    if (!w) {
+      alert(
+        'Permita pop-ups para imprimir.'
+      )
+      return
+    }
+
+    w.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+
+          <title>
+            MG Oper - Programação
+          </title>
+
+          <style>
+            @page {
+              size: A4;
+              margin: 12mm;
+            }
+
+            body {
+              font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+              color: #111;
+              line-height: 1.4;
+            }
+          </style>
+        </head>
+
+        <body>
+          ${html}
+
+          <script>
+            window.onload = () => {
+              setTimeout(
+                () => window.print(),
+                300
+              )
+            }
+          </script>
+        </body>
+      </html>
+    `)
+
+    w.document.close()
+  }
+
+  const activeMembers =
+    members.filter(
+      m => m.active !== false
+    )
+
+  const dateTasks =
+    tasks.filter(
+      t =>
+        t.schedule_date ===
+        viewDate
+    )
+
+  const filteredTasks =
+    dateTasks.filter(t => {
+      if (
+        filterMember &&
+        !membersForTask(
+          t.id
+        ).some(
+          m =>
+            m.id ===
+            filterMember
+        )
+      ) {
+        return false
+      }
+
+      if (
+        filterSector &&
+        t.sector_id !==
+          filterSector
+      ) {
+        return false
+      }
+
+      return true
+    })
+
+  const producingSessions =
+    sessions.filter(
+      s => !s.ended_at
+    )
+
+  const producingMemberIds =
+    [
+      ...new Set(
+        producingSessions.map(
+          s => s.member_id
+        )
+      )
+    ]
+
+  const producingNow =
+    producingMemberIds.length
+
+  const dayTarget =
+    dateTasks.reduce(
+      (sum, t) =>
+        sum +
+        Number(
+          t.quantity_target ||
+          t.goal ||
+          0
+        ),
+      0
+    )
+
+  const dayDone =
+    dateTasks.reduce(
+      (sum, t) =>
+        sum +
+        Number(
+          t.quantity_done ||
+          0
+        ),
+      0
+    )
+
+  const dayPercent =
+    dayTarget
+      ? Math.min(
+          100,
+          Math.round(
+            (dayDone /
+              dayTarget) *
+              100
+          )
+        )
+      : 0
+
+  const lateCount =
+    dateTasks.filter(
+      isLate
+    ).length
+
+  const performance =
+    useMemo(() => {
+      return members
+        .filter(
+          member =>
+            member.active !== false
+        )
+        .map(member => {
+          const quantity =
+            logs
+              .filter(l => {
+                if (
+                  l.member_id !==
+                  member.id
+                ) {
+                  return false
+                }
+
+                const task =
+                  tasks.find(
+                    t =>
+                      t.id ===
+                      l.task_id
+                  )
+
+                return (
+                  task?.schedule_date ===
+                  viewDate
+                )
+              })
+              .reduce(
+                (sum, l) =>
+                  sum +
+                  Number(
+                    l.quantity ||
+                    0
+                  ),
+                0
+              )
+
+          return {
+            member,
+            quantity
+          }
+        })
+        .sort(
+          (a, b) =>
+            b.quantity -
+            a.quantity
+        )
+    }, [
+      logs,
+      tasks,
+      members,
+      viewDate
+    ])
 
   if (loading) {
-    return <main className="center"><div className="login">Carregando...</div></main>
+    return (
+      <main className="center">
+        <div className="login">
+          Carregando...
+        </div>
+      </main>
+    )
   }
 
   if (!session) {
     return (
       <main className="center">
         <section className="login">
-          <div className="brand">MG <b>Oper</b></div>
-          <h1>Organize o trabalho do dia.</h1>
-          <p>Gerencie sua empresa, equipe, setores e tarefas.</p>
+          <div className="brand">
+            MG <b>Oper</b>
+          </div>
+
+          <h1>
+            Gestão operacional
+            em tempo real.
+          </h1>
 
           <input
             placeholder="E-mail"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={
+              e =>
+                setEmail(
+                  e.target.value
+                )
+            }
           />
 
           <input
-            placeholder="Senha"
             type="password"
+            placeholder="Senha"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={
+              e =>
+                setPassword(
+                  e.target.value
+                )
+            }
           />
 
           <div className="actions">
-            <button onClick={login}>Entrar</button>
-            <button className="secondary" onClick={signup}>Criar conta</button>
+            <button
+              onClick={login}
+            >
+              Entrar
+            </button>
+
+            <button
+              className="secondary"
+              onClick={signup}
+            >
+              Criar conta
+            </button>
           </div>
 
-          {msg && <small>{msg}</small>}
+          {msg && (
+            <small>{msg}</small>
+          )}
         </section>
       </main>
     )
@@ -270,38 +1632,155 @@ export default function Home() {
     return (
       <main className="center">
         <section className="login">
-          <div className="brand">MG <b>Oper</b></div>
-          <h1>Crie sua empresa</h1>
-          <p>Esse será seu espaço de trabalho.</p>
+          <div className="brand">
+            MG <b>Oper</b>
+          </div>
+
+          <h1>
+            Crie sua empresa
+          </h1>
 
           <input
             placeholder="Nome da empresa"
             value={companyName}
-            onChange={e => setCompanyName(e.target.value)}
+            onChange={
+              e =>
+                setCompanyName(
+                  e.target.value
+                )
+            }
           />
 
-          <button onClick={createCompany}>Começar a usar</button>
-          {msg && <small>{msg}</small>}
+          <button
+            onClick={createCompany}
+          >
+            Começar
+          </button>
+
+          {msg && (
+            <small>{msg}</small>
+          )}
         </section>
       </main>
     )
   }
 
+  const taskProps = task => ({
+    task,
+    people:
+      membersForTask(task.id),
+    sector:
+      sectorById(
+        task.sector_id
+      ),
+    sessions:
+      activeSessionsForTask(
+        task.id
+      ),
+    late: isLate(task),
+    tick,
+    priorityName,
+    memberQuantity,
+    memberIsWorking,
+    onStart: startTask,
+    onMemberProgress:
+      changeMemberProgress,
+    onMemberQuantity:
+      setMemberQuantity,
+    onComplete:
+      completeTask,
+    onAddPerson:
+      addPerson,
+    onRemovePerson:
+      removePerson,
+    onDelete:
+      deleteTask
+  })
+
   return (
     <div>
       <header>
-        <div className="brand">MG <b>Oper</b></div>
+        <div className="brand">
+          MG <b>Oper</b>
+        </div>
 
         <nav>
-          <button onClick={() => setTab('dashboard')}>Dashboard</button>
-          <button onClick={() => setTab('programacao')}>Programação</button>
-          <button onClick={() => setTab('equipe')}>Equipe</button>
-          <button onClick={() => setTab('setores')}>Setores</button>
+          <button
+            onClick={() =>
+              setTab('dashboard')
+            }
+          >
+            Dashboard
+          </button>
+
+          <button
+            onClick={() =>
+              setTab('programacao')
+            }
+          >
+            Programação
+          </button>
+
+          <button
+            onClick={() =>
+              setTab('agora')
+            }
+          >
+            🟢 Produzindo Agora
+          </button>
+
+          <button
+            onClick={() =>
+              setTab('desempenho')
+            }
+          >
+            Desempenho
+          </button>
+
+          <button
+            onClick={() =>
+              setTab('historico')
+            }
+          >
+            Histórico
+          </button>
+
+          <button
+            onClick={() =>
+              setTab('tv')
+            }
+          >
+            📺 TV
+          </button>
+
+          <button
+            onClick={() =>
+              setTab('equipe')
+            }
+          >
+            Equipe
+          </button>
+
+          <button
+            onClick={() =>
+              setTab('setores')
+            }
+          >
+            Setores
+          </button>
         </nav>
 
         <div>
-          <span>{company.name}</span>
-          <button className="link" onClick={logout}>Sair</button>
+          <span>
+            {company.name}
+          </span>
+
+          <button
+            className="link"
+            onClick={logout}
+          >
+            Sair
+          </button>
         </div>
       </header>
 
@@ -309,155 +1788,759 @@ export default function Home() {
 
         {tab === 'dashboard' && (
           <>
-            <p className="eyebrow">VISÃO GERAL</p>
-            <h1>Olá! O que precisa ser feito hoje?</h1>
-            <p>Acompanhe a operação da empresa em um só lugar.</p>
+            <p className="eyebrow">
+              CENTRAL DE PRODUÇÃO
+            </p>
+
+            <h1>
+              Produção de{' '}
+              {formatDate(viewDate)}
+            </h1>
+
+            <input
+              type="date"
+              value={viewDate}
+              onChange={
+                e =>
+                  setViewDate(
+                    e.target.value
+                  )
+              }
+            />
 
             <div className="stats">
-              <Card n={stats.pending} t="Pendentes" />
-              <Card n={stats.progress} t="Em andamento" />
-              <Card n={stats.completed} t="Concluídas" />
-              <Card n={members.length} t="Pessoas" />
+              <Card
+                n={producingNow}
+                t="Produzindo agora"
+              />
+
+              <Card
+                n={`${dayDone}/${dayTarget}`}
+                t="Realizado / Meta"
+              />
+
+              <Card
+                n={`${dayPercent}%`}
+                t="Meta concluída"
+              />
+
+              <Card
+                n={lateCount}
+                t="Precisam de atenção"
+              />
             </div>
 
             <section className="panel">
-              <h2>Programação de hoje</h2>
+              <h2>
+                Progresso geral do dia
+              </h2>
 
-              {tasks.length === 0 && <p>Nenhuma tarefa cadastrada.</p>}
+              <Progress
+                percent={dayPercent}
+              />
 
-              {tasks.slice(0, 8).map(t => (
-                <div className="task" key={t.id}>
-                  <div>
-                    <b>{t.title}</b>
-                    <p>
-                      {t.assignee || 'Sem responsável'} · {sectorNameById(t.sector_id)}
-                      {t.goal ? ` · Meta: ${t.goal}` : ''}
-                    </p>
-                  </div>
+              <p>
+                {dayDone} produzidos
+                de {dayTarget}{' '}
+                planejados.
+              </p>
+            </section>
 
-                  <button onClick={() => advance(t)}>
-                    {statusName(t.status)}
-                  </button>
-                </div>
-              ))}
+            <section
+              className="panel"
+              style={{
+                marginTop: 20
+              }}
+            >
+              <h2>
+                Programação do dia
+              </h2>
+
+              {dateTasks.length ===
+                0 && (
+                <p>
+                  Nenhuma tarefa.
+                </p>
+              )}
+
+              {dateTasks.map(
+                task => (
+                  <ProductionTask
+                    key={task.id}
+                    {...taskProps(task)}
+                  />
+                )
+              )}
             </section>
           </>
         )}
 
-        {tab === 'programacao' && (
+        {tab ===
+          'programacao' && (
           <>
-            <p className="eyebrow">PROGRAMAÇÃO</p>
-            <h1>Programação do dia</h1>
-            <p>Distribua tarefas, responsáveis e metas.</p>
+            <p className="eyebrow">
+              PLANEJAMENTO
+            </p>
+
+            <h1>
+              Nova programação
+            </h1>
 
             <div className="two">
               <section className="panel">
-                <h2>Nova tarefa</h2>
+                <label>Data</label>
 
                 <input
-                  placeholder="Ex.: Separar pedidos da manhã"
-                  value={taskTitle}
-                  onChange={e => setTaskTitle(e.target.value)}
+                  type="date"
+                  value={taskDate}
+                  onChange={
+                    e =>
+                      setTaskDate(
+                        e.target.value
+                      )
+                  }
                 />
 
-                <select value={taskMember} onChange={e => setTaskMember(e.target.value)}>
-                  <option value="">Responsável</option>
-                  {members.map(m =>
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  )}
-                </select>
-
-                <select value={taskSector} onChange={e => setTaskSector(e.target.value)}>
-                  <option value="">Setor</option>
-                  {sectors.map(s =>
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  )}
-                </select>
-
                 <input
-                  placeholder="Meta / quantidade"
-                  value={taskGoal}
-                  onChange={e => setTaskGoal(e.target.value)}
+                  placeholder="Produto / tarefa"
+                  value={taskTitle}
+                  onChange={
+                    e =>
+                      setTaskTitle(
+                        e.target.value
+                      )
+                  }
                 />
 
                 <select
-                  value={taskPriority}
-                  onChange={e => setTaskPriority(e.target.value)}
+                  value={taskSector}
+                  onChange={
+                    e =>
+                      setTaskSector(
+                        e.target.value
+                      )
+                  }
                 >
-                  <option value="low">Prioridade baixa</option>
-                  <option value="normal">Prioridade normal</option>
-                  <option value="high">Prioridade alta</option>
+                  <option value="">
+                    Setor
+                  </option>
+
+                  {sectors.map(
+                    s => (
+                      <option
+                        key={s.id}
+                        value={s.id}
+                      >
+                        {s.name}
+                      </option>
+                    )
+                  )}
                 </select>
 
-                <button onClick={addTask}>Delegar tarefa</button>
+                <input
+                  inputMode="numeric"
+                  placeholder="Quantidade que deve fazer"
+                  value={taskGoal}
+                  onChange={
+                    e =>
+                      setTaskGoal(
+                        e.target.value
+                      )
+                  }
+                />
+
+                <label>
+                  Horário desejado
+                </label>
+
+                <input
+                  type="time"
+                  value={
+                    taskDeadline
+                  }
+                  onChange={
+                    e =>
+                      setTaskDeadline(
+                        e.target.value
+                      )
+                  }
+                />
+
+                <select
+                  value={
+                    taskPriority
+                  }
+                  onChange={
+                    e =>
+                      setTaskPriority(
+                        e.target.value
+                      )
+                  }
+                >
+                  <option value="low">
+                    Prioridade baixa
+                  </option>
+
+                  <option value="normal">
+                    Prioridade normal
+                  </option>
+
+                  <option value="high">
+                    Prioridade alta
+                  </option>
+                </select>
+
+                <textarea
+                  placeholder="Observações..."
+                  value={taskNotes}
+                  onChange={
+                    e =>
+                      setTaskNotes(
+                        e.target.value
+                      )
+                  }
+                  style={{
+                    width: '100%',
+                    minHeight: 90,
+                    padding: 12,
+                    marginBottom: 12,
+                    borderRadius: 8
+                  }}
+                />
+
+                <h3>
+                  Funcionário(s)
+                </h3>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      'repeat(auto-fit,minmax(150px,1fr))',
+                    gap: 8,
+                    marginBottom: 16
+                  }}
+                >
+                  {activeMembers.map(
+                    m => (
+                      <label
+                        key={m.id}
+                        style={{
+                          padding: 10,
+                          border:
+                            '1px solid #333',
+                          borderRadius: 8,
+                          cursor:
+                            'pointer'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedMembers.includes(
+                              m.id
+                            )
+                          }
+                          onChange={() =>
+                            toggleSelectedMember(
+                              m.id
+                            )
+                          }
+                        />{' '}
+                        {m.name}
+                      </label>
+                    )
+                  )}
+                </div>
+
+                <button
+                  onClick={addTask}
+                >
+                  Criar programação
+                </button>
               </section>
 
               <section className="panel">
-                <h2>Tarefas</h2>
+                <h2>
+                  Consultar programação
+                </h2>
 
-                {tasks.length === 0 && <p>Nenhuma tarefa ainda.</p>}
+                <input
+                  type="date"
+                  value={viewDate}
+                  onChange={
+                    e =>
+                      setViewDate(
+                        e.target.value
+                      )
+                  }
+                />
 
-                {tasks.map(t => (
-                  <div className="task" key={t.id}>
-                    <div>
-                      <b>{t.title}</b>
-                      <p>
-                        {t.assignee || 'Sem responsável'} · {sectorNameById(t.sector_id)}
-                        {t.goal ? ` · Meta: ${t.goal}` : ''}
-                      </p>
-                      <small>Prioridade: {t.priority || 'normal'}</small>
-                    </div>
+                <select
+                  value={
+                    filterMember
+                  }
+                  onChange={
+                    e =>
+                      setFilterMember(
+                        e.target.value
+                      )
+                  }
+                >
+                  <option value="">
+                    Todos os funcionários
+                  </option>
 
-                    <button onClick={() => advance(t)}>
-                      {statusName(t.status)}
-                    </button>
-                  </div>
-                ))}
+                  {members.map(
+                    m => (
+                      <option
+                        key={m.id}
+                        value={m.id}
+                      >
+                        {m.name}
+                      </option>
+                    )
+                  )}
+                </select>
+
+                <select
+                  value={
+                    filterSector
+                  }
+                  onChange={
+                    e =>
+                      setFilterSector(
+                        e.target.value
+                      )
+                  }
+                >
+                  <option value="">
+                    Todos os setores
+                  </option>
+
+                  {sectors.map(
+                    s => (
+                      <option
+                        key={s.id}
+                        value={s.id}
+                      >
+                        {s.name}
+                      </option>
+                    )
+                  )}
+                </select>
+
+                {filterMember && (
+                  <button
+                    onClick={() => {
+                      const m =
+                        memberById(
+                          filterMember
+                        )
+
+                      if (m) {
+                        printEmployeeDay(
+                          m
+                        )
+                      }
+                    }}
+                  >
+                    🖨 Imprimir programação do funcionário
+                  </button>
+                )}
+
+                <h3
+                  style={{
+                    marginTop: 20
+                  }}
+                >
+                  {
+                    filteredTasks.length
+                  }{' '}
+                  tarefa(s)
+                  encontrada(s)
+                </h3>
               </section>
             </div>
+
+            <section
+              className="panel"
+              style={{
+                marginTop: 20
+              }}
+            >
+              {filteredTasks.length ===
+                0 && (
+                <p>
+                  Nenhuma tarefa.
+                </p>
+              )}
+
+              {filteredTasks.map(
+                task => (
+                  <ProductionTask
+                    key={task.id}
+                    {...taskProps(task)}
+                  />
+                )
+              )}
+            </section>
           </>
+        )}
+
+        {tab === 'agora' && (
+          <>
+            <p className="eyebrow">
+              TEMPO REAL
+            </p>
+
+            <h1>
+              🟢 Produzindo agora:{' '}
+              {producingNow}
+            </h1>
+
+            {producingSessions.length ===
+              0 && (
+              <section className="panel">
+                <p>
+                  Ninguém está
+                  produzindo neste
+                  momento.
+                </p>
+              </section>
+            )}
+
+            {tasks
+              .filter(
+                t =>
+                  activeSessionsForTask(
+                    t.id
+                  ).length > 0
+              )
+              .map(task => (
+                <ProductionTask
+                  key={task.id}
+                  {...taskProps(task)}
+                />
+              ))}
+          </>
+        )}
+
+        {tab ===
+          'desempenho' && (
+          <>
+            <p className="eyebrow">
+              INDICADORES
+            </p>
+
+            <h1>
+              Desempenho da equipe
+            </h1>
+
+            <input
+              type="date"
+              value={viewDate}
+              onChange={
+                e =>
+                  setViewDate(
+                    e.target.value
+                  )
+              }
+            />
+
+            <section
+              className="panel"
+              style={{
+                marginTop: 20
+              }}
+            >
+              {performance.map(
+                (x, i) => (
+                  <div
+                    className="row"
+                    key={
+                      x.member.id
+                    }
+                  >
+                    <div>
+                      <b>
+                        {i + 1}.{' '}
+                        {
+                          x.member
+                            .name
+                        }
+                      </b>
+
+                      <br />
+
+                      <small>
+                        {sectorById(
+                          x.member
+                            .sector_id
+                        )}
+                      </small>
+                    </div>
+
+                    <strong
+                      style={{
+                        fontSize: 22
+                      }}
+                    >
+                      {x.quantity}{' '}
+                      produzidos
+                    </strong>
+                  </div>
+                )
+              )}
+            </section>
+          </>
+        )}
+
+        {tab ===
+          'historico' && (
+          <>
+            <p className="eyebrow">
+              HISTÓRICO
+            </p>
+
+            <h1>
+              Produção por data
+            </h1>
+
+            <input
+              type="date"
+              value={viewDate}
+              onChange={
+                e =>
+                  setViewDate(
+                    e.target.value
+                  )
+              }
+            />
+
+            <section
+              className="panel"
+              style={{
+                marginTop: 20
+              }}
+            >
+              {dateTasks.length ===
+                0 && (
+                <p>
+                  Nenhum registro.
+                </p>
+              )}
+
+              {dateTasks.map(
+                t => (
+                  <div
+                    className="row"
+                    key={t.id}
+                  >
+                    <div>
+                      <b>
+                        {t.title}
+                      </b>
+
+                      <br />
+
+                      <small>
+                        {membersForTask(
+                          t.id
+                        )
+                          .map(
+                            m =>
+                              m.name
+                          )
+                          .join(
+                            ', '
+                          ) ||
+                          t.assignee ||
+                          'Sem responsável'}
+                      </small>
+                    </div>
+
+                    <strong>
+                      {t.quantity_done ||
+                        0}{' '}
+                      /{' '}
+                      {t.quantity_target ||
+                        t.goal ||
+                        '—'}
+                    </strong>
+                  </div>
+                )
+              )}
+            </section>
+          </>
+        )}
+
+        {tab === 'tv' && (
+          <div
+            style={{
+              fontSize: '1.2em'
+            }}
+          >
+            <p className="eyebrow">
+              PAINEL OPERACIONAL
+            </p>
+
+            <h1>
+              📺 MG Oper —
+              Produção Agora
+            </h1>
+
+            <div className="stats">
+              <Card
+                n={producingNow}
+                t="Pessoas produzindo"
+              />
+
+              <Card
+                n={`${dayPercent}%`}
+                t="Meta do dia"
+              />
+
+              <Card
+                n={lateCount}
+                t="Atenção"
+              />
+            </div>
+
+            {tasks
+              .filter(
+                t =>
+                  activeSessionsForTask(
+                    t.id
+                  ).length > 0
+              )
+              .map(task => (
+                <TVTask
+                  key={task.id}
+                  task={task}
+                  people={
+                    membersForTask(
+                      task.id
+                    )
+                  }
+                  memberQuantity={
+                    memberQuantity
+                  }
+                  sessions={
+                    activeSessionsForTask(
+                      task.id
+                    )
+                  }
+                  tick={tick}
+                />
+              ))}
+          </div>
         )}
 
         {tab === 'equipe' && (
           <>
-            <p className="eyebrow">EQUIPE</p>
-            <h1>Funcionários</h1>
-            <p>Cadastre as pessoas que trabalham na empresa.</p>
+            <p className="eyebrow">
+              EQUIPE
+            </p>
+
+            <h1>
+              Funcionários
+            </h1>
 
             <div className="two">
               <section className="panel">
-                <h2>Adicionar funcionário</h2>
-
                 <input
-                  placeholder="Nome do funcionário"
-                  value={memberName}
-                  onChange={e => setMemberName(e.target.value)}
+                  placeholder="Nome"
+                  value={
+                    memberName
+                  }
+                  onChange={
+                    e =>
+                      setMemberName(
+                        e.target.value
+                      )
+                  }
                 />
 
                 <select
-                  value={memberSector}
-                  onChange={e => setMemberSector(e.target.value)}
+                  value={
+                    memberSector
+                  }
+                  onChange={
+                    e =>
+                      setMemberSector(
+                        e.target.value
+                      )
+                  }
                 >
-                  <option value="">Sem setor definido</option>
-                  {sectors.map(s =>
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                  <option value="">
+                    Sem setor
+                  </option>
+
+                  {sectors.map(
+                    s => (
+                      <option
+                        key={s.id}
+                        value={s.id}
+                      >
+                        {s.name}
+                      </option>
+                    )
                   )}
                 </select>
 
-                <button onClick={addMember}>Adicionar</button>
+                <button
+                  onClick={
+                    addMember
+                  }
+                >
+                  Adicionar
+                  funcionário
+                </button>
               </section>
 
               <section className="panel">
-                <h2>Equipe cadastrada</h2>
+                {members.map(
+                  m => (
+                    <div
+                      className="row"
+                      key={m.id}
+                    >
+                      <div>
+                        <b>
+                          {m.name}
+                        </b>
 
-                {members.length === 0 && <p>Nenhum funcionário cadastrado.</p>}
+                        <br />
 
-                {members.map(m => (
-                  <div className="row" key={m.id}>
-                    <b>{m.name}</b>
-                    <span>{sectorNameById(m.sector_id)}</span>
-                  </div>
-                ))}
+                        <small>
+                          {sectorById(
+                            m.sector_id
+                          )}{' '}
+                          ·{' '}
+                          {m.active ===
+                          false
+                            ? 'Inativo'
+                            : 'Ativo'}
+                        </small>
+                      </div>
+
+                      <button
+                        className="secondary"
+                        onClick={() =>
+                          toggleMember(
+                            m
+                          )
+                        }
+                      >
+                        {m.active ===
+                        false
+                          ? 'Reativar'
+                          : 'Desativar'}
+                      </button>
+                    </div>
+                  )
+                )}
               </section>
             </div>
           </>
@@ -465,40 +2548,606 @@ export default function Home() {
 
         {tab === 'setores' && (
           <>
-            <p className="eyebrow">ESTRUTURA</p>
-            <h1>Setores da empresa</h1>
-            <p>Cada empresa pode montar sua própria operação.</p>
+            <p className="eyebrow">
+              ESTRUTURA
+            </p>
+
+            <h1>
+              Setores
+            </h1>
 
             <div className="two">
               <section className="panel">
-                <h2>Novo setor</h2>
-
                 <input
-                  placeholder="Ex.: Produção, Vendas, Expedição..."
-                  value={sectorName}
-                  onChange={e => setSectorName(e.target.value)}
+                  placeholder="Novo setor"
+                  value={
+                    sectorName
+                  }
+                  onChange={
+                    e =>
+                      setSectorName(
+                        e.target.value
+                      )
+                  }
                 />
 
-                <button onClick={addSector}>Criar setor</button>
+                <button
+                  onClick={
+                    addSector
+                  }
+                >
+                  Criar setor
+                </button>
               </section>
 
               <section className="panel">
-                <h2>Setores cadastrados</h2>
-
-                {sectors.length === 0 && <p>Nenhum setor cadastrado.</p>}
-
-                {sectors.map(s => (
-                  <div className="row" key={s.id}>
-                    <b>{s.name}</b>
-                  </div>
-                ))}
+                {sectors.map(
+                  s => (
+                    <div
+                      className="row"
+                      key={s.id}
+                    >
+                      <b>
+                        {s.name}
+                      </b>
+                    </div>
+                  )
+                )}
               </section>
             </div>
           </>
         )}
 
-        {msg && <p className="message">{msg}</p>}
+        {msg && (
+          <p
+            className="message"
+            style={{
+              padding: 12,
+              marginTop: 20,
+              border:
+                '1px solid #ef4444',
+              borderRadius: 8
+            }}
+          >
+            {msg}
+          </p>
+        )}
       </main>
+    </div>
+  )
+}
+
+function ProductionTask({
+  task,
+  people,
+  sector,
+  sessions,
+  late,
+  tick,
+  priorityName,
+  memberQuantity,
+  memberIsWorking,
+  onStart,
+  onMemberProgress,
+  onMemberQuantity,
+  onComplete,
+  onAddPerson,
+  onRemovePerson,
+  onDelete
+}) {
+  const done =
+    Number(
+      task.quantity_done ||
+      0
+    )
+
+  const target =
+    Number(
+      task.quantity_target ||
+      task.goal ||
+      0
+    )
+
+  const percent =
+    target
+      ? Math.min(
+          100,
+          Math.round(
+            (done / target) *
+              100
+          )
+        )
+      : 0
+
+  const working =
+    sessions.length > 0
+
+  return (
+    <div
+      className="task"
+      style={{
+        alignItems:
+          'stretch',
+        marginBottom: 14,
+        display: 'block'
+      }}
+    >
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            flexWrap: 'wrap',
+            alignItems:
+              'center'
+          }}
+        >
+          <b
+            style={{
+              fontSize: 20
+            }}
+          >
+            {task.title}
+          </b>
+
+          {working && (
+            <span>
+              🟢{' '}
+              {sessions.length}{' '}
+              produzindo agora
+            </span>
+          )}
+
+          {late && (
+            <span>
+              🚨 ATRASADA
+            </span>
+          )}
+        </div>
+
+        <p>
+          🏭 {sector} ·
+          Prioridade:{' '}
+          {priorityName(
+            task.priority
+          )}
+        </p>
+
+        {task.notes && (
+          <p>
+            📝 {task.notes}
+          </p>
+        )}
+
+        {task.deadline_time && (
+          <p>
+            ⏰ Prazo:{' '}
+            {task.deadline_time.slice(
+              0,
+              5
+            )}
+          </p>
+        )}
+
+        <div
+          style={{
+            marginTop: 16,
+            padding: 14,
+            border:
+              '1px solid #303842',
+            borderRadius: 10
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent:
+                'space-between',
+              gap: 15,
+              flexWrap: 'wrap'
+            }}
+          >
+            <strong>
+              TOTAL DA EQUIPE
+            </strong>
+
+            <strong>
+              {done} /{' '}
+              {target || '—'}{' '}
+              {target
+                ? `— ${percent}%`
+                : ''}
+            </strong>
+          </div>
+
+          {target > 0 && (
+            <Progress
+              percent={percent}
+            />
+          )}
+        </div>
+
+        <h3
+          style={{
+            marginTop: 20
+          }}
+        >
+          👥 Produção
+          individual
+        </h3>
+
+        {people.length ===
+          0 && (
+          <p>
+            Nenhum funcionário
+            vinculado.
+          </p>
+        )}
+
+        <div
+          style={{
+            display: 'grid',
+            gap: 10
+          }}
+        >
+          {people.map(
+            person => {
+              const individual =
+                memberQuantity(
+                  task.id,
+                  person.id
+                )
+
+              const isWorking =
+                memberIsWorking(
+                  task.id,
+                  person.id
+                )
+
+              return (
+                <div
+                  key={
+                    person.id
+                  }
+                  style={{
+                    border:
+                      '1px solid #303842',
+                    borderRadius: 10,
+                    padding: 14,
+                    display: 'flex',
+                    justifyContent:
+                      'space-between',
+                    alignItems:
+                      'center',
+                    gap: 12,
+                    flexWrap:
+                      'wrap'
+                  }}
+                >
+                  <div>
+                    <b
+                      style={{
+                        fontSize: 17
+                      }}
+                    >
+                      {isWorking
+                        ? '🟢'
+                        : '⚪'}{' '}
+                      {
+                        person.name
+                      }
+                    </b>
+
+                    <div
+                      style={{
+                        marginTop: 5
+                      }}
+                    >
+                      Produziu:{' '}
+                      <strong>
+                        {
+                          individual
+                        }
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display:
+                        'flex',
+                      gap: 7,
+                      flexWrap:
+                        'wrap'
+                    }}
+                  >
+                    {task.status !==
+                      'completed' && (
+                      <>
+                        <button
+                          className="secondary"
+                          onClick={() =>
+                            onMemberProgress(
+                              task,
+                              person,
+                              -5
+                            )
+                          }
+                        >
+                          −5
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            onMemberProgress(
+                              task,
+                              person,
+                              5
+                            )
+                          }
+                        >
+                          +5
+                        </button>
+
+                        <button
+                          className="secondary"
+                          onClick={() =>
+                            onMemberQuantity(
+                              task,
+                              person
+                            )
+                          }
+                        >
+                          ✎ Qtd.
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            }
+          )}
+        </div>
+
+        {working &&
+          sessions.length >
+            0 && (
+          <p
+            style={{
+              marginTop: 15
+            }}
+          >
+            ⏱️ Tempo da
+            produção:{' '}
+            <b>
+              {formatDuration(
+                Math.min(
+                  ...sessions.map(
+                    s =>
+                      new Date(
+                        s.started_at
+                      ).getTime()
+                  )
+                )
+              )}
+            </b>
+          </p>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: 18
+          }}
+        >
+          {task.status !==
+            'completed' &&
+            !working && (
+            <button
+              onClick={() =>
+                onStart(task)
+              }
+            >
+              ▶ Iniciar todos
+            </button>
+          )}
+
+          {task.status !==
+            'completed' && (
+            <>
+              <button
+                className="secondary"
+                onClick={() =>
+                  onAddPerson(
+                    task
+                  )
+                }
+              >
+                + Pessoa
+              </button>
+
+              <button
+                className="secondary"
+                onClick={() =>
+                  onRemovePerson(
+                    task
+                  )
+                }
+              >
+                − Pessoa
+              </button>
+
+              <button
+                onClick={() =>
+                  onComplete(
+                    task
+                  )
+                }
+              >
+                ✓ Concluir tarefa
+              </button>
+            </>
+          )}
+
+          <button
+            className="secondary"
+            onClick={() =>
+              onDelete(task)
+            }
+          >
+            🗑 Excluir
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TVTask({
+  task,
+  people,
+  memberQuantity,
+  sessions
+}) {
+  const done =
+    Number(
+      task.quantity_done ||
+      0
+    )
+
+  const target =
+    Number(
+      task.quantity_target ||
+      task.goal ||
+      0
+    )
+
+  const percent =
+    target
+      ? Math.min(
+          100,
+          Math.round(
+            (done / target) *
+              100
+          )
+        )
+      : 0
+
+  return (
+    <section
+      className="panel"
+      style={{
+        marginTop: 18,
+        padding: 25
+      }}
+    >
+      <h2
+        style={{
+          fontSize: 28,
+          marginBottom: 5
+        }}
+      >
+        🟢 {task.title}
+      </h2>
+
+      <h2>
+        TOTAL: {done} /{' '}
+        {target || '—'} —{' '}
+        {percent}%
+      </h2>
+
+      <Progress
+        percent={percent}
+      />
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns:
+            'repeat(auto-fit,minmax(180px,1fr))',
+          gap: 10,
+          marginTop: 18
+        }}
+      >
+        {people.map(
+          person => (
+            <div
+              key={person.id}
+              style={{
+                padding: 14,
+                border:
+                  '1px solid #333',
+                borderRadius: 10
+              }}
+            >
+              <b>
+                👤 {person.name}
+              </b>
+
+              <div
+                style={{
+                  fontSize: 22,
+                  marginTop: 5
+                }}
+              >
+                {memberQuantity(
+                  task.id,
+                  person.id
+                )}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+
+      {sessions.length >
+        0 && (
+        <p>
+          ⏱️{' '}
+          {formatDuration(
+            Math.min(
+              ...sessions.map(
+                s =>
+                  new Date(
+                    s.started_at
+                  ).getTime()
+              )
+            )
+          )}
+        </p>
+      )}
+    </section>
+  )
+}
+
+function Progress({
+  percent
+}) {
+  return (
+    <div
+      style={{
+        height: 16,
+        width: '100%',
+        background:
+          '#252c32',
+        borderRadius: 999,
+        overflow: 'hidden',
+        margin: '8px 0'
+      }}
+    >
+      <div
+        style={{
+          width:
+            `${percent}%`,
+          height: '100%',
+          background:
+            'linear-gradient(90deg,#4ade80,#22c55e)',
+          transition:
+            'width .3s ease'
+        }}
+      />
     </div>
   )
 }
@@ -510,4 +3159,84 @@ function Card({ n, t }) {
       <span>{t}</span>
     </div>
   )
+}
+
+function formatDate(value) {
+  if (!value) return '—'
+
+  const [y, m, d] =
+    value
+      .slice(0, 10)
+      .split('-')
+
+  return `${d}/${m}/${y}`
+}
+
+function formatDuration(
+  startMs
+) {
+  if (
+    !startMs ||
+    Number.isNaN(startMs)
+  ) {
+    return '00:00:00'
+  }
+
+  const total =
+    Math.max(
+      0,
+      Math.floor(
+        (Date.now() -
+          startMs) /
+          1000
+      )
+    )
+
+  const h =
+    String(
+      Math.floor(
+        total / 3600
+      )
+    ).padStart(2, '0')
+
+  const m =
+    String(
+      Math.floor(
+        (total % 3600) /
+          60
+      )
+    ).padStart(2, '0')
+
+  const s =
+    String(
+      total % 60
+    ).padStart(2, '0')
+
+  return `${h}:${m}:${s}`
+}
+
+function safe(value) {
+  return String(
+    value ?? ''
+  )
+    .replaceAll(
+      '&',
+      '&amp;'
+    )
+    .replaceAll(
+      '<',
+      '&lt;'
+    )
+    .replaceAll(
+      '>',
+      '&gt;'
+    )
+    .replaceAll(
+      '"',
+      '&quot;'
+    )
+    .replaceAll(
+      "'",
+      '&#039;'
+    )
 }
