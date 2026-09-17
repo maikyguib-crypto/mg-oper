@@ -392,6 +392,75 @@ export default function Home() {
     else await loadAll()
   }
 
+  async function clearTestData() {
+    const ok = window.confirm(
+      'ATENÇÃO: isso vai apagar todas as tarefas/programações, histórico de produção e funcionários desta empresa. Os setores serão mantidos. Deseja continuar?'
+    )
+    if (!ok) return
+
+    const typed = window.prompt('Para confirmar a limpeza, digite LIMPAR')
+    if (typed !== 'LIMPAR') {
+      alert('Limpeza cancelada.')
+      return
+    }
+
+    setMsg('Limpando dados de teste...')
+
+    try {
+      const taskIds = tasks.map(t => t.id).filter(Boolean)
+
+      // Tabelas de histórico que possuem company_id
+      for (const table of ['production_logs', 'production_sessions', 'task_events']) {
+        const { error } = await db.from(table).delete().eq('company_id', company.id)
+        if (error) throw error
+      }
+
+      // Vínculos entre tarefas e funcionários não possuem company_id
+      if (taskIds.length) {
+        const { error } = await db.from('task_members').delete().in('task_id', taskIds)
+        if (error) throw error
+      }
+
+      // Apaga as programações/tarefas e depois os funcionários
+      {
+        const { error } = await db.from('tasks').delete().eq('company_id', company.id)
+        if (error) throw error
+      }
+
+      {
+        const { error } = await db.from('company_members').delete().eq('company_id', company.id)
+        if (error) throw error
+      }
+
+      setMsg('')
+      alert('Dados de teste apagados. Os setores foram mantidos.')
+      await loadAll()
+    } catch (error) {
+      setMsg(error?.message || 'Não foi possível limpar os dados.')
+    }
+  }
+
+  async function clearSectors() {
+    const ok = window.confirm(
+      'Isso vai apagar TODOS os setores desta empresa. Faça isso somente depois de limpar tarefas e funcionários. Continuar?'
+    )
+    if (!ok) return
+
+    const typed = window.prompt('Para confirmar, digite SETORES')
+    if (typed !== 'SETORES') {
+      alert('Exclusão dos setores cancelada.')
+      return
+    }
+
+    const { error } = await db.from('sectors').delete().eq('company_id', company.id)
+    if (error) setMsg(error.message)
+    else {
+      setMsg('')
+      alert('Todos os setores foram apagados.')
+      await loadAll()
+    }
+  }
+
   async function toggleMember(member) {
     const activate = member.active === false
 
@@ -2616,6 +2685,16 @@ export default function Home() {
               </section>
 
               <section className="panel">
+                <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+                  <b>Limpeza de dados de teste</b>
+                  <p style={{ margin: '6px 0 12px' }}>
+                    Apaga programações, histórico de produção e funcionários para você começar do zero. Os setores são mantidos.
+                  </p>
+                  <button className="secondary" onClick={clearTestData}>
+                    🧹 Limpar dados de teste
+                  </button>
+                </div>
+
                 {members.map(
                   m => (
                     <div
@@ -2706,6 +2785,16 @@ export default function Home() {
               </section>
 
               <section className="panel">
+                <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+                  <b>Zerar setores</b>
+                  <p style={{ margin: '6px 0 12px' }}>
+                    Use somente se também quiser recriar todos os setores.
+                  </p>
+                  <button className="secondary" onClick={clearSectors}>
+                    🧹 Excluir todos os setores
+                  </button>
+                </div>
+
                 {sectors.map(
                   s => (
                     <div
