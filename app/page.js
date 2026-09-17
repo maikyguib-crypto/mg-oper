@@ -45,6 +45,12 @@ export default function Home() {
   const [taskDeadline, setTaskDeadline] = useState('')
   const [selectedMembers, setSelectedMembers] = useState([])
 
+  const [quickRows, setQuickRows] = useState([
+    { id: 1, title: '', sector_id: '', quantity: '', deadline: '', priority: 'normal', member_ids: [] }
+  ])
+  const [copyDate, setCopyDate] = useState('')
+  const [savingQuick, setSavingQuick] = useState(false)
+
   const [viewDate, setViewDate] = useState(localDate())
   const [filterMember, setFilterMember] = useState('')
   const [filterSector, setFilterSector] = useState('')
@@ -490,6 +496,102 @@ export default function Home() {
         ? current.filter(x => x !== id)
         : [...current, id]
     )
+  }
+
+  function newQuickRow() {
+    return { id: Date.now() + Math.random(), title: '', sector_id: '', quantity: '', deadline: '', priority: 'normal', member_ids: [] }
+  }
+
+  function updateQuickRow(id, field, value) {
+    setQuickRows(rows => rows.map(row => row.id === id ? { ...row, [field]: value } : row))
+  }
+
+  function toggleQuickMember(rowId, memberId) {
+    setQuickRows(rows => rows.map(row => {
+      if (row.id !== rowId) return row
+      const current = row.member_ids || []
+      return { ...row, member_ids: current.includes(memberId) ? current.filter(id => id !== memberId) : [...current, memberId] }
+    }))
+  }
+
+  function addQuickRow() { setQuickRows(rows => [...rows, newQuickRow()]) }
+
+  function duplicateQuickRow(id) {
+    setQuickRows(rows => {
+      const source = rows.find(row => row.id === id)
+      if (!source) return rows
+      return [...rows, { ...source, id: Date.now() + Math.random(), member_ids: [...(source.member_ids || [])] }]
+    })
+  }
+
+  function removeQuickRow(id) {
+    setQuickRows(rows => rows.length === 1 ? [{ ...newQuickRow(), id: rows[0].id }] : rows.filter(row => row.id !== id))
+  }
+
+  async function createTaskRecord(data) {
+    const selected = members.filter(m => (data.member_ids || []).includes(m.id))
+    const payload = {
+      company_id: company.id, title: data.title.trim(), status: 'pending', priority: data.priority || 'normal',
+      schedule_date: data.schedule_date, quantity_done: 0, notes: data.notes?.trim() || null,
+      assignee: selected.map(m => m.name).join(', ')
+    }
+    if (data.sector_id) payload.sector_id = data.sector_id
+    if (data.quantity) { payload.quantity_target = Number(data.quantity); payload.goal = String(data.quantity) }
+    if (data.deadline) payload.deadline_time = data.deadline
+    if (selected[0]) payload.member_id = selected[0].id
+
+    const { data: created, error } = await db.from('tasks').insert(payload).select().single()
+    if (error) throw error
+    if (data.member_ids?.length) {
+      const { error: linkError } = await db.from('task_members').insert(data.member_ids.map(memberId => ({ task_id: created.id, member_id: memberId, active: true })))
+      if (linkError) throw linkError
+    }
+    await addEvent(created.id, null, 'task_created', data.event_description || 'Tarefa criada')
+    return created
+  }
+
+  async function saveQuickProgramming() {
+    setMsg('')
+    const validRows = quickRows.filter(row => row.title.trim())
+    if (!validRows.length) return alert('Adicione pelo menos uma tarefa com nome.')
+    const incomplete = validRows.find(row => !(row.member_ids || []).length)
+    if (incomplete) return alert(`Selecione pelo menos um funcionário para: ${incomplete.title}`)
+    setSavingQuick(true)
+    try {
+      for (const row of validRows) await createTaskRecord({ ...row, schedule_date: taskDate, event_description: 'Tarefa criada pela Programação Rápida' })
+      setQuickRows([newQuickRow()]); setViewDate(taskDate); await loadAll()
+      alert(`${validRows.length} tarefa(s) salva(s) na programação do dia.`)
+    } catch (error) { setMsg(error?.message || 'Não foi possível salvar a programação rápida.') }
+    finally { setSavingQuick(false) }
+  }
+
+  async function copyProgrammingFromDate() {
+    if (!copyDate) return alert('Escolha a data que deseja copiar.')
+    if (copyDate === taskDate) return alert('Escolha uma data diferente da data de destino.')
+    const sourceTasks = tasks.filter(task => task.schedule_date === copyDate)
+    if (!sourceTasks.length) return alert('Não há programação nessa data para copiar.')
+    if (!window.confirm(`Copiar ${sourceTasks.length} tarefa(s) dessa data para a programação escolhida?`)) return
+    setSavingQuick(true)
+    try {
+      let copied = 0
+      for (const task of sourceTasks) {
+        const memberIds = taskMembers.filter(link => link.task_id === task.id && link.active !== false).map(link => link.member_id).filter(id => members.some(m => m.id === id && m.active !== false))
+        if (!memberIds.length) continue
+        await createTaskRecord({ title: task.title, sector_id: task.sector_id || '', quantity: task.quantity_target || task.goal || '', deadline: task.deadline_time || '', priority: task.priority || 'normal', notes: task.notes || '', member_ids: memberIds, schedule_date: taskDate, event_description: `Programação copiada de ${copyDate}` })
+        copied++
+      }
+      setViewDate(taskDate); await loadAll(); alert(`${copied} tarefa(s) copiadas com sucesso.`)
+    } catch (error) { setMsg(error?.message || 'Não foi possível copiar a programação.') }
+    finally { setSavingQuick(false) }
+  }
+
+  async function duplicateTask(task) {
+    const memberIds = taskMembers.filter(link => link.task_id === task.id && link.active !== false).map(link => link.member_id)
+    if (!memberIds.length) return alert('Essa tarefa não possui funcionário ativo para duplicar.')
+    try {
+      await createTaskRecord({ title: task.title, sector_id: task.sector_id || '', quantity: task.quantity_target || task.goal || '', deadline: task.deadline_time || '', priority: task.priority || 'normal', notes: task.notes || '', member_ids: memberIds, schedule_date: task.schedule_date || viewDate, event_description: 'Tarefa duplicada' })
+      await loadAll()
+    } catch (error) { setMsg(error?.message || 'Não foi possível duplicar a tarefa.') }
   }
 
   async function addTask() {
@@ -1870,6 +1972,8 @@ export default function Home() {
       removePerson,
     onEdit:
       editTask,
+    onDuplicate:
+      duplicateTask,
     onDelete:
       deleteTask
   })
@@ -2068,10 +2172,70 @@ export default function Home() {
             </p>
 
             <h1>
-              Nova programação
+              Programação
             </h1>
 
+            <section className="panel" style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div>
+                  <p className="eyebrow">PROGRAMAÇÃO RÁPIDA</p>
+                  <h2 style={{ marginBottom: 4 }}>Monte o dia inteiro de uma vez</h2>
+                  <small>Adicione várias tarefas e salve tudo com um único clique.</small>
+                </div>
+                <div style={{ minWidth: 190 }}>
+                  <label>Data da programação</label>
+                  <input type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+                {quickRows.map((row, index) => (
+                  <div key={row.id} className="task" style={{ marginTop: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <b>Tarefa {index + 1}</b>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="secondary" onClick={() => duplicateQuickRow(row.id)}>⧉ Duplicar linha</button>
+                        <button className="secondary" onClick={() => removeQuickRow(row.id)}>🗑 Remover</button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10, marginTop: 10 }}>
+                      <input placeholder="Produto / tarefa" value={row.title} onChange={e => updateQuickRow(row.id, 'title', e.target.value)} />
+                      <input inputMode="numeric" placeholder="Quantidade" value={row.quantity} onChange={e => updateQuickRow(row.id, 'quantity', e.target.value)} />
+                      <select value={row.sector_id} onChange={e => updateQuickRow(row.id, 'sector_id', e.target.value)}><option value="">Setor</option>{sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+                      <input type="time" value={row.deadline} onChange={e => updateQuickRow(row.id, 'deadline', e.target.value)} />
+                      <select value={row.priority} onChange={e => updateQuickRow(row.id, 'priority', e.target.value)}><option value="low">Prioridade baixa</option><option value="normal">Prioridade normal</option><option value="high">Prioridade alta</option></select>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <small style={{ display: 'block', marginBottom: 6 }}>Funcionário(s)</small>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                        {activeMembers.map(m => (
+                          <label key={m.id} style={{ marginTop: 0, padding: '8px 10px', border: '1px solid #253040', borderRadius: 9, cursor: 'pointer', background: (row.member_ids || []).includes(m.id) ? 'rgba(94,230,168,.10)' : '#0b1119' }}>
+                            <input type="checkbox" checked={(row.member_ids || []).includes(m.id)} onChange={() => toggleQuickMember(row.id, m.id)} style={{ width: 'auto', minHeight: 0, margin: '0 6px 0 0' }} />{m.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="actions" style={{ marginTop: 14, flexWrap: 'wrap' }}>
+                <button className="secondary" onClick={addQuickRow}>＋ Adicionar tarefa</button>
+                <button onClick={saveQuickProgramming} disabled={savingQuick}>{savingQuick ? 'Salvando...' : '✓ Salvar programação do dia'}</button>
+              </div>
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #253040' }}>
+                <h3 style={{ margin: '0 0 6px' }}>⧉ Copiar programação de outra data</h3>
+                <small>Reaproveite tarefas, funcionários, setores, quantidades e horários.</small>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                  <input type="date" value={copyDate} onChange={e => setCopyDate(e.target.value)} style={{ maxWidth: 220 }} />
+                  <button className="secondary" onClick={copyProgrammingFromDate} disabled={savingQuick}>Copiar para {taskDate.split('-').reverse().join('/')}</button>
+                </div>
+              </div>
+            </section>
+
+            <h2 style={{ marginTop: 26 }}>Criar uma tarefa individual</h2>
+
             <div className="two">
+
               <section className="panel">
                 <label>Data</label>
 
@@ -2919,6 +3083,7 @@ function ProductionTask({
   onAddPerson,
   onRemovePerson,
   onEdit,
+  onDuplicate,
   onDelete
 }) {
   const done =
@@ -3276,6 +3441,13 @@ function ProductionTask({
               </button>
             </>
           )}
+
+          <button
+            className="secondary"
+            onClick={() => onDuplicate(task)}
+          >
+            ⧉ Duplicar
+          </button>
 
           <button
             className="secondary"
