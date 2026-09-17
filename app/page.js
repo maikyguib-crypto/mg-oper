@@ -50,6 +50,14 @@ export default function Home() {
   const [filterSector, setFilterSector] = useState('')
   const [tick, setTick] = useState(0)
 
+  const [editModal, setEditModal] = useState(null)
+  const [editForm, setEditForm] = useState({})
+
+  function closeEditModal() {
+    setEditModal(null)
+    setEditForm({})
+  }
+
   useEffect(() => {
     db.auth.getSession().then(({ data }) => {
       setSession(data.session)
@@ -314,17 +322,17 @@ export default function Home() {
     await loadAll()
   }
 
-  async function editSector(sector) {
-    const name = window.prompt('Novo nome do setor:', sector.name)
-    if (name === null || !name.trim()) return
+  function editSector(sector) {
+    setEditForm({ name: sector.name || '' })
+    setEditModal({ type: 'sector', item: sector })
+  }
 
-    const { error } = await db
-      .from('sectors')
-      .update({ name: name.trim() })
-      .eq('id', sector.id)
-
+  async function saveSectorEdit() {
+    const sector = editModal?.item
+    if (!sector || !String(editForm.name || '').trim()) return
+    const { error } = await db.from('sectors').update({ name: String(editForm.name).trim() }).eq('id', sector.id)
     if (error) setMsg(error.message)
-    else await loadAll()
+    else { closeEditModal(); await loadAll() }
   }
 
   async function deleteSector(sector) {
@@ -347,36 +355,19 @@ export default function Home() {
     else await loadAll()
   }
 
-  async function editMember(member) {
-    const name = window.prompt('Nome do funcionário:', member.name)
-    if (name === null || !name.trim()) return
+  function editMember(member) {
+    setEditForm({ name: member.name || '', sector_id: member.sector_id || '' })
+    setEditModal({ type: 'member', item: member })
+  }
 
-    const sectorList = sectors
-      .map((s, i) => `${i + 1} - ${s.name}`)
-      .join('\n')
-    const currentIndex = sectors.findIndex(s => s.id === member.sector_id)
-    const sectorAnswer = window.prompt(
-      `Setor do funcionário. Digite 0 para Sem setor ou o número:\n${sectorList}`,
-      currentIndex >= 0 ? String(currentIndex + 1) : '0'
-    )
-    if (sectorAnswer === null) return
-
-    const n = Number(sectorAnswer)
-    if (!Number.isInteger(n) || n < 0 || n > sectors.length) {
-      alert('Setor inválido.')
-      return
-    }
-
-    const { error } = await db
-      .from('company_members')
-      .update({
-        name: name.trim(),
-        sector_id: n === 0 ? null : sectors[n - 1].id
-      })
-      .eq('id', member.id)
-
+  async function saveMemberEdit() {
+    const member = editModal?.item
+    if (!member || !String(editForm.name || '').trim()) return
+    const { error } = await db.from('company_members').update({
+      name: String(editForm.name).trim(), sector_id: editForm.sector_id || null
+    }).eq('id', member.id)
     if (error) setMsg(error.message)
-    else await loadAll()
+    else { closeEditModal(); await loadAll() }
   }
 
   async function deleteMember(member) {
@@ -1204,81 +1195,31 @@ export default function Home() {
     await refreshProduction()
   }
 
-  async function editTask(task) {
-    const title = window.prompt('Produto / tarefa:', task.title)
-    if (title === null || !title.trim()) return
+  function editTask(task) {
+    setEditForm({
+      title: task.title || '', quantity: String(task.quantity_target || task.goal || ''),
+      schedule_date: task.schedule_date || localDate(),
+      deadline_time: task.deadline_time ? task.deadline_time.slice(0, 5) : '',
+      notes: task.notes || '', priority: task.priority || 'normal', sector_id: task.sector_id || ''
+    })
+    setEditModal({ type: 'task', item: task })
+  }
 
-    const quantity = window.prompt(
-      'Quantidade / meta:',
-      String(task.quantity_target || task.goal || '')
-    )
-    if (quantity === null) return
-
-    const date = window.prompt('Data (AAAA-MM-DD):', task.schedule_date || localDate())
-    if (date === null || !date.trim()) return
-
-    const deadline = window.prompt(
-      'Horário limite (HH:MM). Deixe vazio para remover:',
-      task.deadline_time ? task.deadline_time.slice(0, 5) : ''
-    )
-    if (deadline === null) return
-
-    const notes = window.prompt(
-      'Observação. Deixe vazio para remover:',
-      task.notes || ''
-    )
-    if (notes === null) return
-
-    const priority = window.prompt(
-      'Prioridade: low, normal ou high',
-      task.priority || 'normal'
-    )
-    if (priority === null) return
-    if (!['low', 'normal', 'high'].includes(priority)) {
-      alert('Prioridade inválida. Use low, normal ou high.')
-      return
-    }
-
-    const sectorList = sectors.map((x, i) => `${i + 1} - ${x.name}`).join('\n')
-    const currentSector = sectors.findIndex(x => x.id === task.sector_id)
-    const sectorAnswer = window.prompt(
-      `Setor. Digite 0 para Sem setor ou o número:\n${sectorList}`,
-      currentSector >= 0 ? String(currentSector + 1) : '0'
-    )
-    if (sectorAnswer === null) return
-    const sectorNumber = Number(sectorAnswer)
-    if (!Number.isInteger(sectorNumber) || sectorNumber < 0 || sectorNumber > sectors.length) {
-      alert('Setor inválido.')
-      return
-    }
-
-    const q = quantity.trim() === '' ? null : Number(quantity)
-    if (q !== null && (!Number.isFinite(q) || q < 0)) {
-      alert('Quantidade inválida.')
-      return
-    }
-
-    const { error } = await db
-      .from('tasks')
-      .update({
-        title: title.trim(),
-        quantity_target: q,
-        goal: q === null ? null : String(q),
-        schedule_date: date.trim(),
-        deadline_time: deadline.trim() || null,
-        notes: notes.trim() || null,
-        priority,
-        sector_id: sectorNumber === 0 ? null : sectors[sectorNumber - 1].id
-      })
-      .eq('id', task.id)
-
-    if (error) {
-      setMsg(error.message)
-      return
-    }
-
+  async function saveTaskEdit() {
+    const task = editModal?.item
+    if (!task || !String(editForm.title || '').trim()) return
+    const raw = String(editForm.quantity ?? '').trim()
+    const q = raw === '' ? null : Number(raw.replace(',', '.'))
+    if (q !== null && (!Number.isFinite(q) || q < 0)) { setMsg('Quantidade inválida.'); return }
+    const { error } = await db.from('tasks').update({
+      title: String(editForm.title).trim(), quantity_target: q, goal: q === null ? null : String(q),
+      schedule_date: editForm.schedule_date || localDate(), deadline_time: editForm.deadline_time || null,
+      notes: String(editForm.notes || '').trim() || null, priority: editForm.priority || 'normal',
+      sector_id: editForm.sector_id || null
+    }).eq('id', task.id)
+    if (error) { setMsg(error.message); return }
     await addEvent(task.id, null, 'task_edited', 'Tarefa editada')
-    await loadAll()
+    closeEditModal(); await loadAll()
   }
 
   async function deleteTask(task) {
@@ -2796,6 +2737,61 @@ export default function Home() {
               </section>
             </div>
           </>
+        )}
+
+        {editModal && (
+          <div onClick={closeEditModal} style={{
+            position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,.72)',
+            display: 'grid', placeItems: 'center', padding: 16
+          }}>
+            <section className="panel" onClick={e => e.stopPropagation()} style={{
+              width: 'min(560px, 100%)', maxHeight: '90vh', overflowY: 'auto'
+            }}>
+              <p className="eyebrow">EDIÇÃO</p>
+              <h2>{editModal.type === 'task' ? 'Editar tarefa' : editModal.type === 'member' ? 'Editar funcionário' : 'Editar setor'}</h2>
+
+              {editModal.type === 'sector' && <>
+                <label>Nome do setor</label>
+                <input autoFocus value={editForm.name || ''} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+              </>}
+
+              {editModal.type === 'member' && <>
+                <label>Nome do funcionário</label>
+                <input autoFocus value={editForm.name || ''} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                <label>Setor</label>
+                <select value={editForm.sector_id || ''} onChange={e => setEditForm(f => ({ ...f, sector_id: e.target.value }))}>
+                  <option value="">Sem setor</option>
+                  {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </>}
+
+              {editModal.type === 'task' && <>
+                <label>Produto / tarefa</label>
+                <input autoFocus value={editForm.title || ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
+                <label>Quantidade / meta</label>
+                <input inputMode="decimal" value={editForm.quantity ?? ''} onChange={e => setEditForm(f => ({ ...f, quantity: e.target.value }))} />
+                <label>Data</label>
+                <input type="date" value={editForm.schedule_date || ''} onChange={e => setEditForm(f => ({ ...f, schedule_date: e.target.value }))} />
+                <label>Horário desejado</label>
+                <input type="time" value={editForm.deadline_time || ''} onChange={e => setEditForm(f => ({ ...f, deadline_time: e.target.value }))} />
+                <label>Prioridade</label>
+                <select value={editForm.priority || 'normal'} onChange={e => setEditForm(f => ({ ...f, priority: e.target.value }))}>
+                  <option value="low">Baixa</option><option value="normal">Normal</option><option value="high">Alta</option>
+                </select>
+                <label>Setor</label>
+                <select value={editForm.sector_id || ''} onChange={e => setEditForm(f => ({ ...f, sector_id: e.target.value }))}>
+                  <option value="">Sem setor</option>{sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <label>Observação</label>
+                <textarea rows={4} value={editForm.notes || ''} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+              </>}
+
+              <div className="actions" style={{ marginTop: 18 }}>
+                <button onClick={editModal.type === 'task' ? saveTaskEdit : editModal.type === 'member' ? saveMemberEdit : saveSectorEdit}>✓ Salvar alterações</button>
+                <button className="secondary" onClick={closeEditModal}>Cancelar</button>
+              </div>
+            </section>
+          </div>
         )}
 
         {msg && (
