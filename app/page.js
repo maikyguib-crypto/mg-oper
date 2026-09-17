@@ -14,6 +14,7 @@ function localDate() {
 }
 
 export default function Home() {
+  const [mobileMenu, setMobileMenu] = useState(false)
   const [session, setSession] = useState(null)
   const [company, setCompany] = useState(null)
   const [members, setMembers] = useState([])
@@ -1699,12 +1700,20 @@ export default function Home() {
 
   return (
     <div>
-      <header>
-        <div className="brand">
-          MG <b>Oper</b>
-        </div>
+<header>
+  <div className="brand">
+    MG <b>Oper</b>
+  </div>
 
-        <nav>
+  <button
+    className="mobile-menu-button"
+    onClick={() => setMobileMenu(!mobileMenu)}
+    aria-label="Abrir menu"
+  >
+    ☰
+  </button>
+
+  <nav className={mobileMenu ? 'mobile-open' : ''}>
           <button
             onClick={() =>
               setTab('dashboard')
