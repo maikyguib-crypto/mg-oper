@@ -51,6 +51,11 @@ export default function Home() {
   const [copyDate, setCopyDate] = useState('')
   const [savingQuick, setSavingQuick] = useState(false)
 
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiDraft, setAiDraft] = useState(null)
+  const [aiWarnings, setAiWarnings] = useState([])
+
   const [viewDate, setViewDate] = useState(localDate())
   const [filterMember, setFilterMember] = useState('')
   const [filterSector, setFilterSector] = useState('')
@@ -548,6 +553,77 @@ export default function Home() {
     }
     await addEvent(created.id, null, 'task_created', data.event_description || 'Tarefa criada')
     return created
+  }
+
+  function normalizeText(value = '') {
+    return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+  }
+
+  function findMemberByName(name) {
+    const wanted = normalizeText(name)
+    return activeMembers.find(m => normalizeText(m.name) === wanted) || null
+  }
+
+  function findSectorByName(name) {
+    const wanted = normalizeText(name)
+    return sectors.find(s => normalizeText(s.name) === wanted) || null
+  }
+
+  async function buildWithAI() {
+    if (!aiPrompt.trim()) return alert('Escreva a programação que você quer montar.')
+    setAiLoading(true)
+    setAiDraft(null)
+    setAiWarnings([])
+    setMsg('')
+    try {
+      const response = await fetch('/api/programacao-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          targetDate: taskDate,
+          members: activeMembers.map(m => ({ id: m.id, name: m.name })),
+          sectors: sectors.map(s => ({ id: s.id, name: s.name }))
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || 'Não foi possível usar o Assistente IA.')
+      setAiDraft(data)
+      setAiWarnings(data.warnings || [])
+    } catch (error) {
+      setMsg(error?.message || 'Não foi possível usar o Assistente IA.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  function applyAIDraft() {
+    if (!aiDraft?.tasks?.length) return
+    const warnings = []
+    const rows = aiDraft.tasks.map(task => {
+      const sector = task.sector_name ? findSectorByName(task.sector_name) : null
+      if (task.sector_name && !sector) warnings.push(`Setor não encontrado: ${task.sector_name}`)
+      const memberIds = []
+      for (const name of task.member_names || []) {
+        const member = findMemberByName(name)
+        if (member) memberIds.push(member.id)
+        else warnings.push(`Funcionário não encontrado: ${name}`)
+      }
+      return {
+        id: Date.now() + Math.random(),
+        title: task.title || '',
+        sector_id: sector?.id || '',
+        quantity: task.quantity ? String(task.quantity) : '',
+        deadline: task.deadline || '',
+        priority: ['low', 'normal', 'high'].includes(task.priority) ? task.priority : 'normal',
+        member_ids: memberIds
+      }
+    })
+    if (aiDraft.suggested_date) setTaskDate(aiDraft.suggested_date)
+    setQuickRows(rows.length ? rows : [newQuickRow()])
+    setAiWarnings([...(aiDraft.warnings || []), ...warnings])
+    setAiDraft(null)
+    window.setTimeout(() => document.getElementById('programacao-rapida')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
   async function saveQuickProgramming() {
@@ -2175,7 +2251,48 @@ export default function Home() {
               Programação
             </h1>
 
-            <section className="panel" style={{ marginBottom: 20 }}>
+            <section className="panel" style={{ marginBottom: 20, borderColor: 'rgba(94,230,168,.35)' }}>
+              <p className="eyebrow">✨ ASSISTENTE IA</p>
+              <h2 style={{ marginBottom: 4 }}>Diga o que precisa ser feito</h2>
+              <small>A IA monta um rascunho. Nada é salvo até você revisar e confirmar.</small>
+              <textarea
+                rows={4}
+                style={{ marginTop: 12 }}
+                placeholder="Ex.: Amanhã Jane faz 100 Biotina no Manual às 10h. Gabriel faz 30 Dutasterida, prioridade alta."
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+              />
+              <div className="actions" style={{ flexWrap: 'wrap' }}>
+                <button onClick={buildWithAI} disabled={aiLoading}>{aiLoading ? '✨ Montando...' : '✨ Montar com IA'}</button>
+                {aiPrompt && <button className="secondary" onClick={() => { setAiPrompt(''); setAiDraft(null); setAiWarnings([]) }}>Limpar</button>}
+              </div>
+              {aiDraft?.tasks?.length > 0 && (
+                <div className="task" style={{ marginTop: 14 }}>
+                  <b>Rascunho encontrado: {aiDraft.tasks.length} tarefa(s)</b>
+                  {aiDraft.suggested_date && <p style={{ margin: '8px 0' }}>Data sugerida: <b style={{ color: '#f5f7fa' }}>{aiDraft.suggested_date.split('-').reverse().join('/')}</b></p>}
+                  <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+                    {aiDraft.tasks.map((task, index) => (
+                      <div key={index} style={{ padding: 10, border: '1px solid #253040', borderRadius: 10 }}>
+                        <b>{task.title}</b>
+                        <div><small>{task.quantity ? `Qtd. ${task.quantity}` : 'Sem quantidade'} · {task.sector_name || 'Sem setor'} · {(task.member_names || []).join(', ') || 'Sem funcionário'}{task.deadline ? ` · ${task.deadline}` : ''}</small></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="actions" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+                    <button onClick={applyAIDraft}>✓ Aplicar na Programação Rápida</button>
+                    <button className="secondary" onClick={() => setAiDraft(null)}>Descartar</button>
+                  </div>
+                </div>
+              )}
+              {aiWarnings.length > 0 && (
+                <div style={{ marginTop: 12, padding: 12, border: '1px solid #8a6d1d', borderRadius: 10, background: 'rgba(245,158,11,.07)' }}>
+                  <b>⚠️ Confira antes de salvar</b>
+                  {aiWarnings.map((warning, index) => <div key={index}><small>{warning}</small></div>)}
+                </div>
+              )}
+            </section>
+
+            <section id="programacao-rapida" className="panel" style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div>
                   <p className="eyebrow">PROGRAMAÇÃO RÁPIDA</p>
