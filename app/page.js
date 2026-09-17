@@ -314,6 +314,93 @@ export default function Home() {
     await loadAll()
   }
 
+  async function editSector(sector) {
+    const name = window.prompt('Novo nome do setor:', sector.name)
+    if (name === null || !name.trim()) return
+
+    const { error } = await db
+      .from('sectors')
+      .update({ name: name.trim() })
+      .eq('id', sector.id)
+
+    if (error) setMsg(error.message)
+    else await loadAll()
+  }
+
+  async function deleteSector(sector) {
+    const usedByMembers = members.some(m => m.sector_id === sector.id)
+    const usedByTasks = tasks.some(t => t.sector_id === sector.id)
+
+    if (usedByMembers || usedByTasks) {
+      alert('Este setor está sendo usado por funcionários ou tarefas. Realoque esses itens antes de excluir o setor.')
+      return
+    }
+
+    if (!window.confirm(`Excluir o setor "${sector.name}"?`)) return
+
+    const { error } = await db
+      .from('sectors')
+      .delete()
+      .eq('id', sector.id)
+
+    if (error) setMsg(error.message)
+    else await loadAll()
+  }
+
+  async function editMember(member) {
+    const name = window.prompt('Nome do funcionário:', member.name)
+    if (name === null || !name.trim()) return
+
+    const sectorList = sectors
+      .map((s, i) => `${i + 1} - ${s.name}`)
+      .join('\n')
+    const currentIndex = sectors.findIndex(s => s.id === member.sector_id)
+    const sectorAnswer = window.prompt(
+      `Setor do funcionário. Digite 0 para Sem setor ou o número:\n${sectorList}`,
+      currentIndex >= 0 ? String(currentIndex + 1) : '0'
+    )
+    if (sectorAnswer === null) return
+
+    const n = Number(sectorAnswer)
+    if (!Number.isInteger(n) || n < 0 || n > sectors.length) {
+      alert('Setor inválido.')
+      return
+    }
+
+    const { error } = await db
+      .from('company_members')
+      .update({
+        name: name.trim(),
+        sector_id: n === 0 ? null : sectors[n - 1].id
+      })
+      .eq('id', member.id)
+
+    if (error) setMsg(error.message)
+    else await loadAll()
+  }
+
+  async function deleteMember(member) {
+    const hasHistory =
+      taskMembers.some(x => x.member_id === member.id) ||
+      logs.some(x => x.member_id === member.id) ||
+      sessions.some(x => x.member_id === member.id)
+
+    if (hasHistory) {
+      alert('Este funcionário possui histórico de produção. Para não perder o histórico, use Desativar em vez de Excluir.')
+      return
+    }
+
+    if (!window.confirm(`Excluir definitivamente ${member.name}?`)) return
+
+    const { error } = await db
+      .from('company_members')
+      .delete()
+      .eq('id', member.id)
+
+    if (error) setMsg(error.message)
+    else await loadAll()
+  }
+
   async function toggleMember(member) {
     const activate = member.active === false
 
@@ -1117,6 +1204,83 @@ export default function Home() {
     await refreshProduction()
   }
 
+  async function editTask(task) {
+    const title = window.prompt('Produto / tarefa:', task.title)
+    if (title === null || !title.trim()) return
+
+    const quantity = window.prompt(
+      'Quantidade / meta:',
+      String(task.quantity_target || task.goal || '')
+    )
+    if (quantity === null) return
+
+    const date = window.prompt('Data (AAAA-MM-DD):', task.schedule_date || localDate())
+    if (date === null || !date.trim()) return
+
+    const deadline = window.prompt(
+      'Horário limite (HH:MM). Deixe vazio para remover:',
+      task.deadline_time ? task.deadline_time.slice(0, 5) : ''
+    )
+    if (deadline === null) return
+
+    const notes = window.prompt(
+      'Observação. Deixe vazio para remover:',
+      task.notes || ''
+    )
+    if (notes === null) return
+
+    const priority = window.prompt(
+      'Prioridade: low, normal ou high',
+      task.priority || 'normal'
+    )
+    if (priority === null) return
+    if (!['low', 'normal', 'high'].includes(priority)) {
+      alert('Prioridade inválida. Use low, normal ou high.')
+      return
+    }
+
+    const sectorList = sectors.map((x, i) => `${i + 1} - ${x.name}`).join('\n')
+    const currentSector = sectors.findIndex(x => x.id === task.sector_id)
+    const sectorAnswer = window.prompt(
+      `Setor. Digite 0 para Sem setor ou o número:\n${sectorList}`,
+      currentSector >= 0 ? String(currentSector + 1) : '0'
+    )
+    if (sectorAnswer === null) return
+    const sectorNumber = Number(sectorAnswer)
+    if (!Number.isInteger(sectorNumber) || sectorNumber < 0 || sectorNumber > sectors.length) {
+      alert('Setor inválido.')
+      return
+    }
+
+    const q = quantity.trim() === '' ? null : Number(quantity)
+    if (q !== null && (!Number.isFinite(q) || q < 0)) {
+      alert('Quantidade inválida.')
+      return
+    }
+
+    const { error } = await db
+      .from('tasks')
+      .update({
+        title: title.trim(),
+        quantity_target: q,
+        goal: q === null ? null : String(q),
+        schedule_date: date.trim(),
+        deadline_time: deadline.trim() || null,
+        notes: notes.trim() || null,
+        priority,
+        sector_id: sectorNumber === 0 ? null : sectors[sectorNumber - 1].id
+      })
+      .eq('id', task.id)
+
+    if (error) {
+      setMsg(error.message)
+      return
+    }
+
+    await addEvent(task.id, null, 'task_edited', 'Tarefa editada')
+    await loadAll()
+  }
+
   async function deleteTask(task) {
     const ok =
       window.confirm(
@@ -1694,26 +1858,28 @@ export default function Home() {
       addPerson,
     onRemovePerson:
       removePerson,
+    onEdit:
+      editTask,
     onDelete:
       deleteTask
   })
 
   return (
     <div>
-<header>
-  <div className="brand">
-    MG <b>Oper</b>
-  </div>
+      <header>
+        <div className="brand">
+          MG <b>Oper</b>
+        </div>
 
-  <button
-    className="mobile-menu-button"
-    onClick={() => setMobileMenu(!mobileMenu)}
-    aria-label="Abrir menu"
-  >
-    ☰
-  </button>
+        <button
+          className="mobile-menu-button"
+          onClick={() => setMobileMenu(!mobileMenu)}
+          aria-label="Abrir menu"
+        >
+          ☰
+        </button>
 
-  <nav className={mobileMenu ? 'mobile-open' : ''}>
+        <nav className={mobileMenu ? 'mobile-open' : ''}>
           <button
             onClick={() =>
               setTab('dashboard')
@@ -2534,19 +2700,28 @@ export default function Home() {
                         </small>
                       </div>
 
-                      <button
-                        className="secondary"
-                        onClick={() =>
-                          toggleMember(
-                            m
-                          )
-                        }
-                      >
-                        {m.active ===
-                        false
-                          ? 'Reativar'
-                          : 'Desativar'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                        <button
+                          className="secondary"
+                          onClick={() => editMember(m)}
+                        >
+                          ✏️ Editar
+                        </button>
+
+                        <button
+                          className="secondary"
+                          onClick={() => toggleMember(m)}
+                        >
+                          {m.active === false ? 'Reativar' : 'Desativar'}
+                        </button>
+
+                        <button
+                          className="secondary"
+                          onClick={() => deleteMember(m)}
+                        >
+                          🗑 Excluir
+                        </button>
+                      </div>
                     </div>
                   )
                 )}
@@ -2599,6 +2774,22 @@ export default function Home() {
                       <b>
                         {s.name}
                       </b>
+
+                      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                        <button
+                          className="secondary"
+                          onClick={() => editSector(s)}
+                        >
+                          ✏️ Editar
+                        </button>
+
+                        <button
+                          className="secondary"
+                          onClick={() => deleteSector(s)}
+                        >
+                          🗑 Excluir
+                        </button>
+                      </div>
                     </div>
                   )
                 )}
@@ -2642,6 +2833,7 @@ function ProductionTask({
   onComplete,
   onAddPerson,
   onRemovePerson,
+  onEdit,
   onDelete
 }) {
   const done =
@@ -3002,9 +3194,14 @@ function ProductionTask({
 
           <button
             className="secondary"
-            onClick={() =>
-              onDelete(task)
-            }
+            onClick={() => onEdit(task)}
+          >
+            ✏️ Editar
+          </button>
+
+          <button
+            className="secondary"
+            onClick={() => onDelete(task)}
           >
             🗑 Excluir
           </button>
