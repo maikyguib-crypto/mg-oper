@@ -31,6 +31,12 @@ export default function Home() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
+  const [accessRole, setAccessRole] = useState('owner')
+  const [linkedMemberId, setLinkedMemberId] = useState(null)
+  const [inviteCode, setInviteCode] = useState('')
+  const [inviteRole, setInviteRole] = useState('operator')
+  const [inviteMember, setInviteMember] = useState('')
+  const [invites, setInvites] = useState([])
 
   const [sectorName, setSectorName] = useState('')
   const [memberName, setMemberName] = useState('')
@@ -126,46 +132,59 @@ export default function Home() {
       return
     }
 
-    const { data: companies, error: companyError } = await db
+    // Primeiro procura empresa própria. Se não houver, procura vínculo por convite.
+    const { data: ownedCompanies, error: ownerError } = await db
       .from('companies')
       .select('*')
       .eq('owner_id', uid)
       .limit(1)
 
-    if (companyError) {
-      setMsg(companyError.message)
+    if (ownerError) {
+      setMsg(ownerError.message)
       setLoading(false)
       return
     }
 
-    const c = companies?.[0]
+    let c = ownedCompanies?.[0] || null
+    let role = c ? 'owner' : null
+    let memberId = null
+
+    if (!c) {
+      const { data: accessRows, error: accessError } = await db
+        .from('company_users')
+        .select('company_id, role, member_id, companies(*)')
+        .eq('auth_user_id', uid)
+        .eq('active', true)
+        .limit(1)
+
+      if (accessError && !String(accessError.message || '').includes('company_users')) {
+        setMsg(accessError.message)
+      }
+
+      const access = accessRows?.[0]
+      if (access?.companies) {
+        c = access.companies
+        role = access.role || 'operator'
+        memberId = access.member_id || null
+      }
+    }
 
     if (!c) {
       setCompany(null)
+      setAccessRole('owner')
+      setLinkedMemberId(null)
       setLoading(false)
       return
     }
 
     setCompany(c)
+    setAccessRole(role || 'operator')
+    setLinkedMemberId(memberId)
 
     const [memberResult, sectorResult, taskResult] = await Promise.all([
-      db
-        .from('company_members')
-        .select('*')
-        .eq('company_id', c.id)
-        .order('name'),
-
-      db
-        .from('sectors')
-        .select('*')
-        .eq('company_id', c.id)
-        .order('name'),
-
-      db
-        .from('tasks')
-        .select('*')
-        .eq('company_id', c.id)
-        .order('created_at', { ascending: false })
+      db.from('company_members').select('*').eq('company_id', c.id).order('name'),
+      db.from('sectors').select('*').eq('company_id', c.id).order('name'),
+      db.from('tasks').select('*').eq('company_id', c.id).order('created_at', { ascending: false })
     ])
 
     if (memberResult.error) setMsg(memberResult.error.message)
@@ -176,8 +195,18 @@ export default function Home() {
     setSectors(sectorResult.data || [])
     setTasks(taskResult.data || [])
 
-    await loadProductionData(c.id)
+    if (role === 'owner' || role === 'admin') {
+      const { data: inviteRows } = await db
+        .from('company_invites')
+        .select('*')
+        .eq('company_id', c.id)
+        .order('created_at', { ascending: false })
+      setInvites(inviteRows || [])
+    } else {
+      setInvites([])
+    }
 
+    await loadProductionData(c.id)
     setLoading(false)
   }
 
@@ -263,6 +292,84 @@ export default function Home() {
         ? error.message
         : 'Conta criada. Agora entre na sua conta.'
     )
+  }
+
+  async function joinCompanyWithCode() {
+    setMsg('')
+    const code = inviteCode.trim().toUpperCase()
+    if (!code) {
+      setMsg('Digite o código de convite.')
+      return
+    }
+
+    const { data: userData } = await db.auth.getUser()
+    const uid = userData.user?.id
+    if (!uid) return
+
+    const { data: invite, error } = await db
+      .from('company_invites')
+      .select('*')
+      .eq('code', code)
+      .eq('active', true)
+      .is('used_by', null)
+      .maybeSingle()
+
+    if (error || !invite) {
+      setMsg('Convite inválido, já utilizado ou expirado.')
+      return
+    }
+
+    const { error: linkError } = await db.from('company_users').insert({
+      company_id: invite.company_id,
+      auth_user_id: uid,
+      role: invite.role || 'operator',
+      member_id: invite.member_id || null,
+      active: true
+    })
+
+    if (linkError) {
+      setMsg(linkError.message)
+      return
+    }
+
+    await db.from('company_invites').update({
+      used_by: uid,
+      used_at: new Date().toISOString(),
+      active: false
+    }).eq('id', invite.id)
+
+    setInviteCode('')
+    await loadAll()
+  }
+
+  async function createInvite() {
+    if (!company || !['owner', 'admin'].includes(accessRole)) return
+
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    let code = 'MG-'
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)]
+
+    const { error } = await db.from('company_invites').insert({
+      company_id: company.id,
+      code,
+      role: inviteRole,
+      member_id: inviteMember || null,
+      created_by: session?.user?.id,
+      active: true
+    })
+
+    if (error) setMsg(error.message)
+    else {
+      setMsg(`Convite criado: ${code}`)
+      setInviteMember('')
+      await loadAll()
+    }
+  }
+
+  async function revokeInvite(invite) {
+    if (!['owner', 'admin'].includes(accessRole)) return
+    await db.from('company_invites').update({ active: false }).eq('id', invite.id)
+    await loadAll()
   }
 
   async function logout() {
@@ -2004,11 +2111,24 @@ export default function Home() {
             }
           />
 
-          <button
-            onClick={createCompany}
-          >
-            Começar
+          <button onClick={createCompany}>
+            Criar minha empresa
           </button>
+
+          <div style={{ margin: '22px 0 12px', borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+            <b>Foi convidado para uma empresa?</b>
+            <p style={{ margin: '6px 0 10px' }}>
+              Digite o código enviado pelo administrador.
+            </p>
+            <input
+              placeholder="Ex.: MG-ABC123"
+              value={inviteCode}
+              onChange={e => setInviteCode(e.target.value.toUpperCase())}
+            />
+            <button className="secondary" onClick={joinCompanyWithCode}>
+              Entrar com convite
+            </button>
+          </div>
 
           {msg && (
             <small>{msg}</small>
@@ -2078,13 +2198,9 @@ export default function Home() {
             Dashboard
           </button>
 
-          <button
-            onClick={() =>
-              setTab('programacao')
-            }
-          >
-            Programação
-          </button>
+          {['owner', 'admin'].includes(accessRole) && (
+            <button onClick={() => setTab('programacao')}>Programação</button>
+          )}
 
           <button
             onClick={() =>
@@ -2118,26 +2234,17 @@ export default function Home() {
             📺 TV
           </button>
 
-          <button
-            onClick={() =>
-              setTab('equipe')
-            }
-          >
-            Equipe
-          </button>
-
-          <button
-            onClick={() =>
-              setTab('setores')
-            }
-          >
-            Setores
-          </button>
+          {['owner', 'admin'].includes(accessRole) && (
+            <>
+              <button onClick={() => setTab('equipe')}>Equipe</button>
+              <button onClick={() => setTab('setores')}>Setores</button>
+            </>
+          )}
         </nav>
 
         <div>
           <span>
-            {company.name}
+            {company.name} · {accessRole === 'owner' ? 'Proprietário' : accessRole === 'admin' ? 'Administrador' : 'Funcionário'}
           </span>
 
           <button
@@ -2966,14 +3073,47 @@ export default function Home() {
               </section>
 
               <section className="panel">
+                <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: '1px solid var(--border)' }}>
+                  <b>🔐 Acessos ao MG Oper</b>
+                  <p style={{ margin: '6px 0 12px' }}>
+                    Gere um código e envie para a pessoa. Ela cria a própria conta e entra na sua empresa com esse código.
+                  </p>
+                  <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
+                    <option value="operator">Funcionário</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                  <select value={inviteMember} onChange={e => setInviteMember(e.target.value)}>
+                    <option value="">Sem vincular a funcionário</option>
+                    {members.filter(m => m.active !== false).map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={createInvite}>＋ Gerar código de convite</button>
+
+                  {invites.filter(i => i.active).slice(0, 8).map(i => (
+                    <div className="row" key={i.id}>
+                      <div>
+                        <b>{i.code}</b><br />
+                        <small>
+                          {i.role === 'admin' ? 'Administrador' : 'Funcionário'}
+                          {i.member_id ? ` · ${members.find(m => m.id === i.member_id)?.name || 'Funcionário'}` : ''}
+                        </small>
+                      </div>
+                      <button className="secondary" onClick={() => revokeInvite(i)}>Revogar</button>
+                    </div>
+                  ))}
+                </div>
+
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
                   <b>Limpeza de dados de teste</b>
                   <p style={{ margin: '6px 0 12px' }}>
                     Apaga programações, histórico de produção e funcionários para você começar do zero. Os setores são mantidos.
                   </p>
-                  <button className="secondary" onClick={clearTestData}>
-                    🧹 Limpar dados de teste
-                  </button>
+                  {accessRole === 'owner' && (
+                    <button className="secondary" onClick={clearTestData}>
+                      🧹 Limpar dados de teste
+                    </button>
+                  )}
                 </div>
 
                 {members.map(
