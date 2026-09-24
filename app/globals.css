@@ -581,3 +581,22 @@ header > div:last-child {
     white-space: nowrap;
   }
 }
+
+/* Painéis responsivos e estados de sincronização */
+.page { width: min(100% - 32px, 1380px); margin-inline: auto; }
+.panel, .task, .login { box-shadow: 0 14px 40px rgba(0,0,0,.13); }
+.account-badge { font-weight: 600; }
+.sync-badge { display: inline-flex; align-items: center; margin: 0 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--green); font-size: 12px; white-space: nowrap; }
+.sector-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 12px; margin-top: 16px; }
+.sector-card { display: grid; gap: 10px; padding: 16px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+.sector-card small, .section-note { color: var(--muted); }
+.sector-card strong { font-size: 21px; }
+.sector-card > div { height: 8px !important; }
+.invite-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.invite-actions button { padding: 8px 10px; }
+.invite-link { overflow-wrap: anywhere; }
+.invite-link a { color: var(--green); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+@media (max-width: 720px) { .page { width: min(100% - 24px, 1380px); } .account-badge { display: block; margin-top: 8px; } .sync-badge { margin: 5px 4px; } }
+.performance-bar { width: min(350px, 55vw); height: 7px; border-radius: 99px; background: var(--surface-3); margin-top: 8px; overflow: hidden; }
+.performance-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--green-dark), var(--blue)); }

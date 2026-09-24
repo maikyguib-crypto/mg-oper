@@ -37,6 +37,9 @@ export default function Home() {
   const [inviteRole, setInviteRole] = useState('operator')
   const [inviteMember, setInviteMember] = useState('')
   const [invites, setInvites] = useState([])
+  const [syncStatus, setSyncStatus] = useState('fallback')
+  const [inviteLink, setInviteLink] = useState('')
+  const [installed, setInstalled] = useState(false)
 
   const [sectorName, setSectorName] = useState('')
   const [memberName, setMemberName] = useState('')
@@ -65,6 +68,7 @@ export default function Home() {
   const [viewDate, setViewDate] = useState(localDate())
   const [filterMember, setFilterMember] = useState('')
   const [filterSector, setFilterSector] = useState('')
+  const [historyQuery, setHistoryQuery] = useState('')
   const [tick, setTick] = useState(0)
 
   const [editModal, setEditModal] = useState(null)
@@ -86,6 +90,17 @@ export default function Home() {
     })
 
     return () => data.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('convite')
+    if (code) {
+      setInviteCode(code.trim().toUpperCase())
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    setInstalled(window.matchMedia('(display-mode: standalone)').matches)
   }, [])
 
   useEffect(() => {
@@ -111,18 +126,46 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (!company) return
-
-    const timer = setInterval(() => {
-      refreshProduction()
-    }, 5000)
-
-    return () => clearInterval(timer)
-  }, [company])
+    if (!company?.id || !session) return
+    let active = true
+    let debounce
+    const scheduleRefresh = () => {
+      if (!active) return
+      clearTimeout(debounce)
+      debounce = setTimeout(() => { if (active) refreshProduction() }, 250)
+    }
+    const channel = db.channel(`mg-oper-${company.id}`)
+    // Subscribe only to this company's rows. The existing polling remains a safe fallback
+    // if replication is unavailable or a connection drops.
+    for (const table of ['tasks', 'production_logs', 'production_sessions', 'company_members', 'sectors']) {
+      channel.on('postgres_changes', {
+        event: '*', schema: 'public', table, filter: `company_id=eq.${company.id}`
+      }, () => {
+        if (table === 'company_members' || table === 'sectors') loadAll()
+        else scheduleRefresh()
+      })
+    }
+    channel.subscribe(status => {
+      if (active) setSyncStatus(status === 'SUBSCRIBED' ? 'realtime' : 'fallback')
+      if (status === 'SUBSCRIBED') scheduleRefresh()
+    })
+    const timer = setInterval(scheduleRefresh, 15000)
+    const onFocus = () => scheduleRefresh()
+    const onVisible = () => { if (document.visibilityState === 'visible') scheduleRefresh() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      active = false
+      clearTimeout(debounce)
+      clearInterval(timer)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+      db.removeChannel(channel)
+    }
+  }, [company?.id, session?.user?.id])
 
   async function loadAll() {
     setLoading(true)
-    setMsg('')
 
     const { data: userData } = await db.auth.getUser()
     const uid = userData.user?.id
@@ -347,7 +390,9 @@ export default function Home() {
 
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
     let code = 'MG-'
-    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)]
+    const bytes = new Uint8Array(8)
+    window.crypto.getRandomValues(bytes)
+    for (const byte of bytes) code += chars[byte % chars.length]
 
     const { error } = await db.from('company_invites').insert({
       company_id: company.id,
@@ -360,10 +405,33 @@ export default function Home() {
 
     if (error) setMsg(error.message)
     else {
+      const link = `${window.location.origin}/?convite=${encodeURIComponent(code)}`
+      setInviteLink(link)
       setMsg(`Convite criado: ${code}`)
       setInviteMember('')
       await loadAll()
     }
+  }
+
+  function linkForInvite(invite) {
+    return `${window.location.origin}/?convite=${encodeURIComponent(invite.code)}`
+  }
+
+  async function copyInviteLink(invite) {
+    try {
+      await navigator.clipboard.writeText(linkForInvite(invite))
+      setMsg('Link do convite copiado. Envie à pessoa que vai entrar na equipe.')
+    } catch {
+      setInviteLink(linkForInvite(invite))
+      setMsg('Copie o link exibido abaixo.')
+    }
+  }
+
+  async function shareInviteLink(invite) {
+    const url = linkForInvite(invite)
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Convite MG Oper', url }) } catch {}
+    } else await copyInviteLink(invite)
   }
 
   async function revokeInvite(invite) {
@@ -769,6 +837,7 @@ export default function Home() {
   }
 
   async function duplicateTask(task) {
+    if (!['owner', 'admin'].includes(accessRole)) return
     const memberIds = taskMembers.filter(link => link.task_id === task.id && link.active !== false).map(link => link.member_id)
     if (!memberIds.length) return alert('Essa tarefa não possui funcionário ativo para duplicar.')
     try {
@@ -928,6 +997,7 @@ export default function Home() {
   }
 
   async function startTask(task) {
+    if (!['owner', 'admin'].includes(accessRole)) return
     const assigned = membersForTask(task.id)
 
     if (!assigned.length) {
@@ -996,6 +1066,7 @@ export default function Home() {
     member,
     amount
   ) {
+    if (!['owner', 'admin'].includes(accessRole) && member.id !== linkedMemberId) return
     setMsg('')
 
     const currentTotal =
@@ -1142,6 +1213,7 @@ export default function Home() {
     task,
     member
   ) {
+    if (!['owner', 'admin'].includes(accessRole) && member.id !== linkedMemberId) return
     const current =
       memberQuantity(
         task.id,
@@ -1281,6 +1353,7 @@ export default function Home() {
   }
 
   async function completeTask(task) {
+    if (!['owner', 'admin'].includes(accessRole)) return
     const target =
       Number(
         task.quantity_target ||
@@ -1356,6 +1429,7 @@ export default function Home() {
   }
 
   async function addPerson(task) {
+    if (!['owner', 'admin'].includes(accessRole)) return
     const current =
       membersForTask(task.id)
 
@@ -1460,6 +1534,7 @@ export default function Home() {
   }
 
   async function removePerson(task) {
+    if (!['owner', 'admin'].includes(accessRole)) return
     const current =
       membersForTask(task.id)
 
@@ -1560,6 +1635,7 @@ export default function Home() {
   }
 
   async function saveTaskEdit() {
+    if (!['owner', 'admin'].includes(accessRole)) return
     const task = editModal?.item
     if (!task || !String(editForm.title || '').trim()) return
     const raw = String(editForm.quantity ?? '').trim()
@@ -1577,6 +1653,7 @@ export default function Home() {
   }
 
   async function deleteTask(task) {
+    if (!['owner', 'admin'].includes(accessRole)) return
     const ok =
       window.confirm(
         `Excluir "${task.title}"?`
@@ -1920,10 +1997,21 @@ export default function Home() {
     ]
 
   const producingNow =
-    producingMemberIds.length
+    accessRole === 'operator' ? producingMemberIds.filter(id => id === linkedMemberId).length : producingMemberIds.length
+
+  const canManage = accessRole === 'owner' || accessRole === 'admin'
+  const visibleTasks = canManage ? dateTasks : dateTasks.filter(t =>
+    linkedMemberId && membersForTask(t.id).some(m => m.id === linkedMemberId)
+  )
+  const completedCount = visibleTasks.filter(t => t.status === 'completed').length
+  const activeTaskCount = tasks.filter(t => activeSessionsForTask(t.id).length > 0 && (canManage || membersForTask(t.id).some(m => m.id === linkedMemberId))).length
+  const sectorSummary = sectors.map(sector => {
+    const list = dateTasks.filter(t => t.sector_id === sector.id)
+    return { sector, tasks: list.length, done: list.reduce((n,t) => n + Number(t.quantity_done || 0), 0), target: list.reduce((n,t) => n + Number(t.quantity_target || t.goal || 0), 0) }
+  }).filter(item => item.tasks)
 
   const dayTarget =
-    dateTasks.reduce(
+    visibleTasks.reduce(
       (sum, t) =>
         sum +
         Number(
@@ -1935,7 +2023,7 @@ export default function Home() {
     )
 
   const dayDone =
-    dateTasks.reduce(
+    visibleTasks.reduce(
       (sum, t) =>
         sum +
         Number(
@@ -1958,7 +2046,7 @@ export default function Home() {
       : 0
 
   const lateCount =
-    dateTasks.filter(
+    visibleTasks.filter(
       isLate
     ).length
 
@@ -2118,11 +2206,12 @@ export default function Home() {
           <div style={{ margin: '22px 0 12px', borderTop: '1px solid var(--border)', paddingTop: 18 }}>
             <b>Foi convidado para uma empresa?</b>
             <p style={{ margin: '6px 0 10px' }}>
-              Digite o código enviado pelo administrador.
+              Abra o link recebido ou digite o código enviado pelo administrador.
             </p>
             <input
               placeholder="Ex.: MG-ABC123"
               value={inviteCode}
+              autoComplete="off"
               onChange={e => setInviteCode(e.target.value.toUpperCase())}
             />
             <button className="secondary" onClick={joinCompanyWithCode}>
@@ -2171,7 +2260,9 @@ export default function Home() {
     onDuplicate:
       duplicateTask,
     onDelete:
-      deleteTask
+      deleteTask,
+    canManage,
+    linkedMemberId
   })
 
   return (
@@ -2243,10 +2334,11 @@ export default function Home() {
         </nav>
 
         <div>
-          <span>
+          <span className="account-badge">
             {company.name} · {accessRole === 'owner' ? 'Proprietário' : accessRole === 'admin' ? 'Administrador' : 'Funcionário'}
           </span>
 
+          <span className="sync-badge" aria-live="polite">{syncStatus === 'realtime' ? '● Ao vivo' : '↻ Sincronizando'}</span>
           <button
             className="link"
             onClick={logout}
@@ -2300,7 +2392,21 @@ export default function Home() {
                 n={lateCount}
                 t="Precisam de atenção"
               />
+              <Card n={completedCount} t="Tarefas concluídas" />
+              <Card n={activeTaskCount} t="Tarefas em andamento" />
             </div>
+
+            {canManage && <section className="panel">
+              <h2>Panorama por setor</h2>
+              {sectorSummary.length === 0 ? <p>Sem tarefas programadas para os setores nesta data.</p> :
+                <div className="sector-grid">{sectorSummary.map(({ sector, tasks: count, done, target }) =>
+                  <div className="sector-card" key={sector.id}>
+                    <b>{sector.name}</b><small>{count} tarefa(s)</small>
+                    <strong>{done} / {target || '—'}</strong>
+                    <Progress percent={target ? Math.min(100, Math.round(done / target * 100)) : 0} />
+                  </div>
+                )}</div>}
+            </section>}
 
             <section className="panel">
               <h2>
@@ -2328,14 +2434,14 @@ export default function Home() {
                 Programação do dia
               </h2>
 
-              {dateTasks.length ===
+              {visibleTasks.length ===
                 0 && (
                 <p>
                   Nenhuma tarefa.
                 </p>
               )}
 
-              {dateTasks.map(
+              {visibleTasks.map(
                 task => (
                   <ProductionTask
                     key={task.id}
@@ -2767,12 +2873,11 @@ export default function Home() {
               TEMPO REAL
             </p>
 
-            <h1>
-              🟢 Produzindo agora:{' '}
-              {producingNow}
-            </h1>
+            <h1>Produzindo agora</h1>
+            <div className="stats"><Card n={producingNow} t="Pessoas ativas" /><Card n={activeTaskCount} t="Tarefas em andamento" /></div>
+            <p className="section-note">Atualização {syncStatus === 'realtime' ? 'ao vivo' : 'automática com reconexão'} · {new Date().toLocaleTimeString('pt-BR')}</p>
 
-            {producingSessions.length ===
+            {activeTaskCount ===
               0 && (
               <section className="panel">
                 <p>
@@ -2784,12 +2889,7 @@ export default function Home() {
             )}
 
             {tasks
-              .filter(
-                t =>
-                  activeSessionsForTask(
-                    t.id
-                  ).length > 0
-              )
+              .filter(t => activeSessionsForTask(t.id).length > 0 && (canManage || membersForTask(t.id).some(m => m.id === linkedMemberId)))
               .map(task => (
                 <ProductionTask
                   key={task.id}
@@ -2821,13 +2921,9 @@ export default function Home() {
               }
             />
 
-            <section
-              className="panel"
-              style={{
-                marginTop: 20
-              }}
-            >
-              {performance.map(
+            <div className="stats"><Card n={performance.filter(x => canManage || x.member.id === linkedMemberId).reduce((n,x) => n + x.quantity, 0)} t="Produção registrada" /><Card n={performance.filter(x => (canManage || x.member.id === linkedMemberId) && x.quantity > 0).length} t="Pessoas com produção" /></div>
+            <section className="panel" style={{ marginTop: 20 }}>
+              {performance.filter(x => canManage || x.member.id === linkedMemberId).map(
                 (x, i) => (
                   <div
                     className="row"
@@ -2847,11 +2943,9 @@ export default function Home() {
                       <br />
 
                       <small>
-                        {sectorById(
-                          x.member
-                            .sector_id
-                        )}
+                        {sectorById(x.member.sector_id)}
                       </small>
+                      <div className="performance-bar"><span style={{width: `${performance[0]?.quantity ? Math.round(x.quantity / performance[0].quantity * 100) : 0}%`}} /></div>
                     </div>
 
                     <strong
@@ -2891,20 +2985,17 @@ export default function Home() {
               }
             />
 
-            <section
-              className="panel"
-              style={{
-                marginTop: 20
-              }}
-            >
-              {dateTasks.length ===
+            <input aria-label="Buscar no histórico" placeholder="Buscar tarefa, setor ou pessoa" value={historyQuery} onChange={e => setHistoryQuery(e.target.value)} />
+            <div className="stats"><Card n={visibleTasks.length} t="Tarefas programadas" /><Card n={completedCount} t="Concluídas" /><Card n={dayDone} t="Quantidade produzida" /></div>
+            <section className="panel" style={{ marginTop: 20 }}>
+              {visibleTasks.length ===
                 0 && (
                 <p>
                   Nenhum registro.
                 </p>
               )}
 
-              {dateTasks.map(
+              {visibleTasks.filter(t => [t.title, sectorById(t.sector_id), ...membersForTask(t.id).map(m => m.name)].join(' ').toLocaleLowerCase('pt-BR').includes(historyQuery.toLocaleLowerCase('pt-BR'))).map(
                 t => (
                   <div
                     className="row"
@@ -2917,6 +3008,7 @@ export default function Home() {
 
                       <br />
 
+                      <small>{sectorById(t.sector_id)} · {t.status === 'completed' ? 'Concluída' : 'Em andamento'} · </small><br />
                       <small>
                         {membersForTask(
                           t.id
@@ -2981,12 +3073,7 @@ export default function Home() {
             </div>
 
             {tasks
-              .filter(
-                t =>
-                  activeSessionsForTask(
-                    t.id
-                  ).length > 0
-              )
+              .filter(t => activeSessionsForTask(t.id).length > 0 && (canManage || membersForTask(t.id).some(m => m.id === linkedMemberId)))
               .map(task => (
                 <TVTask
                   key={task.id}
@@ -3076,7 +3163,7 @@ export default function Home() {
                 <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: '1px solid var(--border)' }}>
                   <b>🔐 Acessos ao MG Oper</b>
                   <p style={{ margin: '6px 0 12px' }}>
-                    Gere um código e envie para a pessoa. Ela cria a própria conta e entra na sua empresa com esse código.
+                    Gere um link e compartilhe com a pessoa. Ela cria a própria conta e entra na sua empresa com o convite.
                   </p>
                   <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
                     <option value="operator">Funcionário</option>
@@ -3088,8 +3175,9 @@ export default function Home() {
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                   </select>
-                  <button onClick={createInvite}>＋ Gerar código de convite</button>
+                  <button onClick={createInvite}>＋ Gerar link de convite</button>
 
+                  {inviteLink && <p className="invite-link"><a href={inviteLink}>{inviteLink}</a></p>}
                   {invites.filter(i => i.active).slice(0, 8).map(i => (
                     <div className="row" key={i.id}>
                       <div>
@@ -3099,16 +3187,14 @@ export default function Home() {
                           {i.member_id ? ` · ${members.find(m => m.id === i.member_id)?.name || 'Funcionário'}` : ''}
                         </small>
                       </div>
-                      <button className="secondary" onClick={() => revokeInvite(i)}>Revogar</button>
+                      <div className="invite-actions"><button className="secondary" onClick={() => copyInviteLink(i)}>Copiar link</button><button className="secondary" onClick={() => shareInviteLink(i)}>Compartilhar</button><button className="secondary" onClick={() => revokeInvite(i)}>Revogar</button></div>
                     </div>
                   ))}
                 </div>
 
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                  <b>Limpeza de dados de teste</b>
-                  <p style={{ margin: '6px 0 12px' }}>
-                    Apaga programações, histórico de produção e funcionários para você começar do zero. Os setores são mantidos.
-                  </p>
+                  <b>Ferramentas do proprietário</b>
+                  <p style={{ margin: '6px 0 12px' }}>A limpeza de dados de teste deve ser usada somente após revisar cuidadosamente a confirmação exibida pelo sistema.</p>
                   {accessRole === 'owner' && (
                     <button className="secondary" onClick={clearTestData}>
                       🧹 Limpar dados de teste
@@ -3341,7 +3427,9 @@ function ProductionTask({
   onRemovePerson,
   onEdit,
   onDuplicate,
-  onDelete
+  onDelete,
+  canManage,
+  linkedMemberId
 }) {
   const done =
     Number(
@@ -3570,7 +3658,7 @@ function ProductionTask({
                     }}
                   >
                     {task.status !==
-                      'completed' && (
+                      'completed' && (canManage || person.id === linkedMemberId) && (
                       <>
                         <button
                           className="secondary"
@@ -3650,7 +3738,7 @@ function ProductionTask({
             marginTop: 18
           }}
         >
-          {task.status !==
+          {canManage && task.status !==
             'completed' &&
             !working && (
             <button
@@ -3662,7 +3750,7 @@ function ProductionTask({
             </button>
           )}
 
-          {task.status !==
+          {canManage && task.status !==
             'completed' && (
             <>
               <button
@@ -3699,26 +3787,26 @@ function ProductionTask({
             </>
           )}
 
-          <button
+          {canManage && <button
             className="secondary"
             onClick={() => onDuplicate(task)}
           >
             ⧉ Duplicar
-          </button>
+          </button>}
 
-          <button
+          {canManage && <button
             className="secondary"
             onClick={() => onEdit(task)}
           >
             ✏️ Editar
-          </button>
+          </button>}
 
-          <button
+          {canManage && <button
             className="secondary"
             onClick={() => onDelete(task)}
           >
             🗑 Excluir
-          </button>
+          </button>}
         </div>
       </div>
     </div>
