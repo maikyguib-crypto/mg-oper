@@ -2335,7 +2335,7 @@ export default function Home() {
 
         <div>
           <span className="account-badge">
-            {company.name} · {accessRole === 'owner' ? 'Proprietário' : accessRole === 'admin' ? 'Administrador' : 'Funcionário'}
+            {company.name.split(' ')[0]} · {accessRole === 'owner' ? 'Proprietário' : accessRole === 'admin' ? 'Administrador' : 'Funcionário'}
           </span>
 
           <span className="sync-badge" aria-live="polite">{syncStatus === 'realtime' ? '● Ao vivo' : '↻ Sincronizando'}</span>
