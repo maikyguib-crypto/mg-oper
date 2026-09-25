@@ -2327,8 +2327,13 @@ export default function Home() {
 
           {['owner', 'admin'].includes(accessRole) && (
             <>
+         <details className="nav-more">
+           <summary>Mais ▾</summary>
+           <div className="nav-more-menu">
               <button onClick={() => setTab('equipe')}>Equipe</button>
               <button onClick={() => setTab('setores')}>Setores</button>
+            </div>
+          </details>
             </>
           )}
         </nav>
