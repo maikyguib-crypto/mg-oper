@@ -405,7 +405,7 @@ export default function Home() {
 
     if (error) setMsg(error.message)
     else {
-      const link = `${window.location.origin}/?convite=${encodeURIComponent(code)}`
+      const link = `${'https://mg-oper.vercel.app'}/?convite=${encodeURIComponent(code)}`
       setInviteLink(link)
       setMsg(`Convite criado: ${code}`)
       setInviteMember('')
