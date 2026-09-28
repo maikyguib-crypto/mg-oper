@@ -2022,17 +2022,19 @@ export default function Home() {
       0
     )
 
-  const dayDone =
-    visibleTasks.reduce(
-      (sum, t) =>
-        sum +
-        Number(
-          t.quantity_done ||
-          0
-        ),
+const taskDone = (task) =>
+  logs
+    .filter(l => l.task_id === task.id)
+    .reduce(
+      (sum, l) => sum + Number(l.quantity || 0),
       0
     )
 
+const dayDone =
+  visibleTasks.reduce(
+    (sum, t) => sum + taskDone(t),
+    0
+  )
   const dayPercent =
     dayTarget
       ? Math.min(
