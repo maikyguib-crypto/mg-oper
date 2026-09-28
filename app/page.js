@@ -3431,12 +3431,15 @@ function ProductionTask({
   canManage,
   linkedMemberId
 }) {
-  const done =
-    Number(
-      task.quantity_done ||
-      0
+const done =
+    Math.max(
+      0,
+      people.reduce(
+        (sum, person) =>
+          sum + memberQuantity(task.id, person.id),
+        0
+      )
     )
-
   const target =
     Number(
       task.quantity_target ||
