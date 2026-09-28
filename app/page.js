@@ -2005,6 +2005,11 @@ export default function Home() {
   )
   const completedCount = visibleTasks.filter(t => t.status === 'completed').length
   const activeTaskCount = tasks.filter(t => activeSessionsForTask(t.id).length > 0 && (canManage || membersForTask(t.id).some(m => m.id === linkedMemberId))).length
+  function taskDone(task) {
+  return logs
+    .filter(l => l.task_id === task.id)
+    .reduce((sum, l) => sum + Number(l.quantity || 0), 0)
+}
   const sectorSummary = sectors.map(sector => {
     const list = dateTasks.filter(t => t.sector_id === sector.id)
     return { sector, tasks: list.length, done: list.reduce((n,t) => n + taskDone(t), 0), target: list.reduce((n,t) => n + Number(t.quantity_target || t.goal || 0), 0) }
@@ -2022,13 +2027,6 @@ export default function Home() {
       0
     )
 
-const taskDone = (task) =>
-  logs
-    .filter(l => l.task_id === task.id)
-    .reduce(
-      (sum, l) => sum + Number(l.quantity || 0),
-      0
-    )
 
 const dayDone =
   visibleTasks.reduce(
