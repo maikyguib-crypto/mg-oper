@@ -2007,7 +2007,7 @@ export default function Home() {
   const activeTaskCount = tasks.filter(t => activeSessionsForTask(t.id).length > 0 && (canManage || membersForTask(t.id).some(m => m.id === linkedMemberId))).length
   const sectorSummary = sectors.map(sector => {
     const list = dateTasks.filter(t => t.sector_id === sector.id)
-    return { sector, tasks: list.length, done: list.reduce((n,t) => n + Number(t.quantity_done || 0), 0), target: list.reduce((n,t) => n + Number(t.quantity_target || t.goal || 0), 0) }
+    return { sector, tasks: list.length, done: list.reduce((n,t) => n + taskDone(t), 0), target: list.reduce((n,t) => n + Number(t.quantity_target || t.goal || 0), 0) }
   }).filter(item => item.tasks)
 
   const dayTarget =
