@@ -165,6 +165,22 @@ export default function Home() {
     }
   }, [company?.id, session?.user?.id])
 
+  async function loadAllUnits() {
+    setLoading(true)
+    const ids = companyOptions.map(u => u.id)
+    const [mr,sr,tr,lr,ssr,tmr] = await Promise.all([
+      db.from('company_members').select('*').in('company_id',ids),
+      db.from('sectors').select('*').in('company_id',ids),
+      db.from('tasks').select('*').in('company_id',ids),
+      db.from('production_logs').select('*').in('company_id',ids),
+      db.from('production_sessions').select('*').in('company_id',ids),
+      db.from('task_members').select('*')
+    ])
+    setCompany({id:'all',name:'Todas as unidades'})
+    setMembers(mr.data||[]); setSectors(sr.data||[]); setTasks(tr.data||[]); setLogs(lr.data||[]); setSessions(ssr.data||[]); setTaskMembers(tmr.data||[])
+    setTab('dashboard'); setLoading(false)
+  }
+
   async function loadAll(selectedCompanyId = null) {
     setLoading(true)
 
@@ -2339,7 +2355,8 @@ const dayDone =
 
         <div>
           {companyOptions.length > 1 && accessRole === 'owner' && (
-            <select value={company.id} onChange={e => loadAll(e.target.value)} aria-label="Selecionar unidade">
+            <select value={company.id} onChange={e => e.target.value === 'all' ? loadAllUnits() : loadAll(e.target.value)} aria-label="Selecionar unidade">
+              <option value="all">Todas as unidades</option>
               {companyOptions.map(unit => <option key={unit.id} value={unit.id}>{unit.name.replace('Miligrama - ', '')}</option>)}
             </select>
           )}
