@@ -2053,6 +2053,20 @@ const dayDone =
     (sum, t) => sum + taskDone(t),
     0
   )
+  const unitSummary = company?.id === 'all' ? companyOptions.map(unit => {
+    const unitTasks = visibleTasks.filter(t => t.company_id === unit.id)
+    const target = unitTasks.reduce((n, t) => n + Number(t.quantity_target || t.goal || 0), 0)
+    const done = unitTasks.reduce((n, t) => n + taskDone(t), 0)
+    const active = sessions.filter(s => s.company_id === unit.id && !s.ended_at).length
+
+    return {
+      unit,
+      target,
+      done,
+      active,
+      percent: target ? Math.min(100, Math.round(done / target * 100)) : 0
+    }
+  }) : []
   const dayPercent =
     dayTarget
       ? Math.min(
@@ -2398,6 +2412,21 @@ const dayDone =
               }
             />
 
+            {company?.id === 'all' && (
+              <section className="panel">
+                <h2>Resumo por unidade</h2>
+                <div className="stats">
+                  {unitSummary.map(item => (
+                    <div className="card" key={item.unit.id}>
+                      <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
+                      <strong>{item.done}/{item.target}</strong>
+                      <p>{item.percent}% concluÃ­do</p>
+                      <small>{item.active} produzindo agora</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="stats">
               <Card
                 n={producingNow}
@@ -2900,6 +2929,21 @@ const dayDone =
             </p>
 
             <h1>Produzindo agora</h1>
+            {company?.id === 'all' && (
+              <section className="panel">
+                <h2>Resumo por unidade</h2>
+                <div className="stats">
+                  {unitSummary.map(item => (
+                    <div className="card" key={item.unit.id}>
+                      <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
+                      <strong>{item.done}/{item.target}</strong>
+                      <p>{item.percent}% concluÃ­do</p>
+                      <small>{item.active} produzindo agora</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="stats"><Card n={producingNow} t="Pessoas ativas" /><Card n={activeTaskCount} t="Tarefas em andamento" /></div>
             <p className="section-note">Atualização {syncStatus === 'realtime' ? 'ao vivo' : 'automática com reconexão'} · {new Date().toLocaleTimeString('pt-BR')}</p>
 
@@ -2947,6 +2991,21 @@ const dayDone =
               }
             />
 
+            {company?.id === 'all' && (
+              <section className="panel">
+                <h2>Resumo por unidade</h2>
+                <div className="stats">
+                  {unitSummary.map(item => (
+                    <div className="card" key={item.unit.id}>
+                      <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
+                      <strong>{item.done}/{item.target}</strong>
+                      <p>{item.percent}% concluÃ­do</p>
+                      <small>{item.active} produzindo agora</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="stats"><Card n={performance.filter(x => canManage || x.member.id === linkedMemberId).reduce((n,x) => n + x.quantity, 0)} t="Produção registrada" /><Card n={performance.filter(x => (canManage || x.member.id === linkedMemberId) && x.quantity > 0).length} t="Pessoas com produção" /></div>
             <section className="panel" style={{ marginTop: 20 }}>
               {performance.filter(x => canManage || x.member.id === linkedMemberId).map(
@@ -3012,6 +3071,21 @@ const dayDone =
             />
 
             <input aria-label="Buscar no histórico" placeholder="Buscar tarefa, setor ou pessoa" value={historyQuery} onChange={e => setHistoryQuery(e.target.value)} />
+            {company?.id === 'all' && (
+              <section className="panel">
+                <h2>Resumo por unidade</h2>
+                <div className="stats">
+                  {unitSummary.map(item => (
+                    <div className="card" key={item.unit.id}>
+                      <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
+                      <strong>{item.done}/{item.target}</strong>
+                      <p>{item.percent}% concluÃ­do</p>
+                      <small>{item.active} produzindo agora</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="stats"><Card n={visibleTasks.length} t="Tarefas programadas" /><Card n={completedCount} t="Concluídas" /><Card n={dayDone} t="Quantidade produzida" /></div>
             <section className="panel" style={{ marginTop: 20 }}>
               {visibleTasks.length ===
@@ -3081,6 +3155,21 @@ const dayDone =
               Produção Agora
             </h1>
 
+            {company?.id === 'all' && (
+              <section className="panel">
+                <h2>Resumo por unidade</h2>
+                <div className="stats">
+                  {unitSummary.map(item => (
+                    <div className="card" key={item.unit.id}>
+                      <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
+                      <strong>{item.done}/{item.target}</strong>
+                      <p>{item.percent}% concluÃ­do</p>
+                      <small>{item.active} produzindo agora</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="stats">
               <Card
                 n={producingNow}
