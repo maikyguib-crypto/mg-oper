@@ -2419,9 +2419,9 @@ const dayDone =
                   {unitSummary.map(item => (
                     <div className="card" key={item.unit.id}>
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
-                      <strong>{item.done}/{item.target}</strong>
-                      <p>{item.percent}% da meta</p>
-                      <small>{item.active} produzindo agora</small>
+                      <p>Produzido: <strong>{item.done} / {item.target}</strong></p>
+                      <p>Meta atingida: <strong>{item.percent}%</strong></p>
+                      <small>Produzindo agora: <strong>{item.active}</strong></small>
                     </div>
                   ))}
                 </div>
