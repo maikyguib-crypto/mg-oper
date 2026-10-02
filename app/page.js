@@ -2425,6 +2425,7 @@ const dayDone =
                         <div style={{height:'100%',width:`${item.percent}%`,background:'#22c55e'}} />
                       </div>
                       <small>Produzindo agora: <strong>{item.active}</strong></small>
+                      <p style={{marginTop:'10px',fontWeight:'600'}}>Abrir unidade →</p>
                     </div>
                   ))}
                 </div>
