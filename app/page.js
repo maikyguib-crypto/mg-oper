@@ -2617,7 +2617,8 @@ const dayDone =
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
                   <input type="date" value={copyDate} onChange={e => setCopyDate(e.target.value)} style={{ maxWidth: 220 }} />
                   <button className="secondary" onClick={copyProgrammingFromDate} disabled={savingQuick}>Copiar para {taskDate.split('-').reverse().join('/')}</button>
-                </div>
+                <button className="secondary" onClick={() => { const d = new Date(taskDate + 'T12:00:00'); d.setDate(d.getDate() - 1); copyProgrammingFromDate(d.toISOString().split('T')[0]); }} disabled={savingQuick}>Copiar dia anterior</button>
+              </div>
               </div>
             </section>
 
