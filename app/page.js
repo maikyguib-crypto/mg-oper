@@ -17,6 +17,7 @@ export default function Home() {
   const [mobileMenu, setMobileMenu] = useState(false)
   const [session, setSession] = useState(null)
   const [company, setCompany] = useState(null)
+  const [companyOptions, setCompanyOptions] = useState([])
   const [members, setMembers] = useState([])
   const [sectors, setSectors] = useState([])
   const [tasks, setTasks] = useState([])
@@ -164,7 +165,7 @@ export default function Home() {
     }
   }, [company?.id, session?.user?.id])
 
-  async function loadAll() {
+  async function loadAll(selectedCompanyId = null) {
     setLoading(true)
 
     const { data: userData } = await db.auth.getUser()
@@ -180,7 +181,8 @@ export default function Home() {
       .from('companies')
       .select('*')
       .eq('owner_id', uid)
-      .limit(1)
+      .in('name', ['Miligrama - Curitiba', 'Miligrama - Fortaleza'])
+      .order('name')
 
     if (ownerError) {
       setMsg(ownerError.message)
@@ -188,7 +190,9 @@ export default function Home() {
       return
     }
 
-    let c = ownedCompanies?.[0] || null
+    const ownedUnits = ownedCompanies || []
+    setCompanyOptions(ownedUnits)
+    let c = selectedCompanyId ? ownedUnits.find(item => item.id === selectedCompanyId) || null : ownedUnits.find(item => item.name === 'Miligrama - Curitiba') || ownedUnits[0] || null
     let role = c ? 'owner' : null
     let memberId = null
 
@@ -2334,6 +2338,11 @@ const dayDone =
         </nav>
 
         <div>
+          {companyOptions.length > 1 && accessRole === 'owner' && (
+            <select value={company.id} onChange={e => loadAll(e.target.value)} aria-label="Selecionar unidade">
+              {companyOptions.map(unit => <option key={unit.id} value={unit.id}>{unit.name.replace('Miligrama - ', '')}</option>)}
+            </select>
+          )}
           <span className="account-badge">
             {company.name.split(' ')[0]} · {accessRole === 'owner' ? 'Proprietário' : accessRole === 'admin' ? 'Administrador' : 'Funcionário'}
           </span>
