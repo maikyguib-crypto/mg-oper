@@ -192,7 +192,7 @@ export default function Home() {
       return
     }
 
-    // Primeiro procura empresa prÃ³pria. Se nÃ£o houver, procura vÃ­nculo por convite.
+    // Primeiro procura empresa própria. Se não houver, procura vínculo por convite.
     const { data: ownedCompanies, error: ownerError } = await db
       .from('companies')
       .select('*')
@@ -361,7 +361,7 @@ export default function Home() {
     setMsg('')
     const code = inviteCode.trim().toUpperCase()
     if (!code) {
-      setMsg('Digite o cÃ³digo de convite.')
+      setMsg('Digite o código de convite.')
       return
     }
 
@@ -378,7 +378,7 @@ export default function Home() {
       .maybeSingle()
 
     if (error || !invite) {
-      setMsg('Convite invÃ¡lido, jÃ¡ utilizado ou expirado.')
+      setMsg('Convite inválido, já utilizado ou expirado.')
       return
     }
 
@@ -440,7 +440,7 @@ export default function Home() {
   async function copyInviteLink(invite) {
     try {
       await navigator.clipboard.writeText(linkForInvite(invite))
-      setMsg('Link do convite copiado. Envie Ã  pessoa que vai entrar na equipe.')
+      setMsg('Link do convite copiado. Envie à pessoa que vai entrar na equipe.')
     } catch {
       setInviteLink(linkForInvite(invite))
       setMsg('Copie o link exibido abaixo.')
@@ -546,7 +546,7 @@ export default function Home() {
     const usedByTasks = tasks.some(t => t.sector_id === sector.id)
 
     if (usedByMembers || usedByTasks) {
-      alert('Este setor estÃ¡ sendo usado por funcionÃ¡rios ou tarefas. Realoque esses itens antes de excluir o setor.')
+      alert('Este setor está sendo usado por funcionários ou tarefas. Realoque esses itens antes de excluir o setor.')
       return
     }
 
@@ -583,7 +583,7 @@ export default function Home() {
       sessions.some(x => x.member_id === member.id)
 
     if (hasHistory) {
-      alert('Este funcionÃ¡rio possui histÃ³rico de produÃ§Ã£o. Para nÃ£o perder o histÃ³rico, use Desativar em vez de Excluir.')
+      alert('Este funcionário possui histórico de produção. Para não perder o histórico, use Desativar em vez de Excluir.')
       return
     }
 
@@ -600,7 +600,7 @@ export default function Home() {
 
   async function clearTestData() {
     const ok = window.confirm(
-      'ATENÃ‡ÃƒO: isso vai apagar todas as tarefas/programaÃ§Ãµes, histÃ³rico de produÃ§Ã£o e funcionÃ¡rios desta empresa. Os setores serÃ£o mantidos. Deseja continuar?'
+      'ATENÇÃO: isso vai apagar todas as tarefas/programações, histórico de produção e funcionários desta empresa. Os setores serão mantidos. Deseja continuar?'
     )
     if (!ok) return
 
@@ -615,19 +615,19 @@ export default function Home() {
     try {
       const taskIds = tasks.map(t => t.id).filter(Boolean)
 
-      // Tabelas de histÃ³rico que possuem company_id
+      // Tabelas de histórico que possuem company_id
       for (const table of ['production_logs', 'production_sessions', 'task_events']) {
         const { error } = await db.from(table).delete().eq('company_id', company.id)
         if (error) throw error
       }
 
-      // VÃ­nculos entre tarefas e funcionÃ¡rios nÃ£o possuem company_id
+      // Vínculos entre tarefas e funcionários não possuem company_id
       if (taskIds.length) {
         const { error } = await db.from('task_members').delete().in('task_id', taskIds)
         if (error) throw error
       }
 
-      // Apaga as programaÃ§Ãµes/tarefas e depois os funcionÃ¡rios
+      // Apaga as programações/tarefas e depois os funcionários
       {
         const { error } = await db.from('tasks').delete().eq('company_id', company.id)
         if (error) throw error
@@ -642,19 +642,19 @@ export default function Home() {
       alert('Dados de teste apagados. Os setores foram mantidos.')
       await loadAll()
     } catch (error) {
-      setMsg(error?.message || 'NÃ£o foi possÃ­vel limpar os dados.')
+      setMsg(error?.message || 'Não foi possível limpar os dados.')
     }
   }
 
   async function clearSectors() {
     const ok = window.confirm(
-      'Isso vai apagar TODOS os setores desta empresa. FaÃ§a isso somente depois de limpar tarefas e funcionÃ¡rios. Continuar?'
+      'Isso vai apagar TODOS os setores desta empresa. Faça isso somente depois de limpar tarefas e funcionários. Continuar?'
     )
     if (!ok) return
 
     const typed = window.prompt('Para confirmar, digite SETORES')
     if (typed !== 'SETORES') {
-      alert('ExclusÃ£o dos setores cancelada.')
+      alert('Exclusão dos setores cancelada.')
       return
     }
 
@@ -673,7 +673,7 @@ export default function Home() {
     const ok = window.confirm(
       activate
         ? `Reativar ${member.name}?`
-        : `Desativar ${member.name}? O histÃ³rico serÃ¡ preservado.`
+        : `Desativar ${member.name}? O histórico será preservado.`
     )
 
     if (!ok) return
@@ -765,7 +765,7 @@ export default function Home() {
   }
 
   async function buildWithAI() {
-    if (!aiPrompt.trim()) return alert('Escreva a programaÃ§Ã£o que vocÃª quer montar.')
+    if (!aiPrompt.trim()) return alert('Escreva a programação que você quer montar.')
     setAiLoading(true)
     setAiDraft(null)
     setAiWarnings([])
@@ -782,11 +782,11 @@ export default function Home() {
         })
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data?.error || 'NÃ£o foi possÃ­vel usar o Assistente IA.')
+      if (!response.ok) throw new Error(data?.error || 'Não foi possível usar o Assistente IA.')
       setAiDraft(data)
       setAiWarnings(data.warnings || [])
     } catch (error) {
-      setMsg(error?.message || 'NÃ£o foi possÃ­vel usar o Assistente IA.')
+      setMsg(error?.message || 'Não foi possível usar o Assistente IA.')
     } finally {
       setAiLoading(false)
     }
@@ -797,12 +797,12 @@ export default function Home() {
     const warnings = []
     const rows = aiDraft.tasks.map(task => {
       const sector = task.sector_name ? findSectorByName(task.sector_name) : null
-      if (task.sector_name && !sector) warnings.push(`Setor nÃ£o encontrado: ${task.sector_name}`)
+      if (task.sector_name && !sector) warnings.push(`Setor não encontrado: ${task.sector_name}`)
       const memberIds = []
       for (const name of task.member_names || []) {
         const member = findMemberByName(name)
         if (member) memberIds.push(member.id)
-        else warnings.push(`FuncionÃ¡rio nÃ£o encontrado: ${name}`)
+        else warnings.push(`Funcionário não encontrado: ${name}`)
       }
       return {
         id: Date.now() + Math.random(),
@@ -826,13 +826,13 @@ export default function Home() {
     const validRows = quickRows.filter(row => row.title.trim())
     if (!validRows.length) return alert('Adicione pelo menos uma tarefa com nome.')
     const incomplete = validRows.find(row => !(row.member_ids || []).length)
-    if (incomplete) return alert(`Selecione pelo menos um funcionÃ¡rio para: ${incomplete.title}`)
+    if (incomplete) return alert(`Selecione pelo menos um funcionário para: ${incomplete.title}`)
     setSavingQuick(true)
     try {
-      for (const row of validRows) await createTaskRecord({ ...row, schedule_date: taskDate, event_description: 'Tarefa criada pela ProgramaÃ§Ã£o RÃ¡pida' })
+      for (const row of validRows) await createTaskRecord({ ...row, schedule_date: taskDate, event_description: 'Tarefa criada pela Programação Rápida' })
       setQuickRows([newQuickRow()]); setViewDate(taskDate); await loadAll()
-      alert(`${validRows.length} tarefa(s) salva(s) na programaÃ§Ã£o do dia.`)
-    } catch (error) { setMsg(error?.message || 'NÃ£o foi possÃ­vel salvar a programaÃ§Ã£o rÃ¡pida.') }
+      alert(`${validRows.length} tarefa(s) salva(s) na programação do dia.`)
+    } catch (error) { setMsg(error?.message || 'Não foi possível salvar a programação rápida.') }
     finally { setSavingQuick(false) }
   }
 
@@ -840,30 +840,30 @@ export default function Home() {
     if (!copyDate) return alert('Escolha a data que deseja copiar.')
     if (copyDate === taskDate) return alert('Escolha uma data diferente da data de destino.')
     const sourceTasks = tasks.filter(task => task.schedule_date === copyDate)
-    if (!sourceTasks.length) return alert('NÃ£o hÃ¡ programaÃ§Ã£o nessa data para copiar.')
-    if (!window.confirm(`Copiar ${sourceTasks.length} tarefa(s) dessa data para a programaÃ§Ã£o escolhida?`)) return
+    if (!sourceTasks.length) return alert('Não há programação nessa data para copiar.')
+    if (!window.confirm(`Copiar ${sourceTasks.length} tarefa(s) dessa data para a programação escolhida?`)) return
     setSavingQuick(true)
     try {
       let copied = 0
       for (const task of sourceTasks) {
         const memberIds = taskMembers.filter(link => link.task_id === task.id && link.active !== false).map(link => link.member_id).filter(id => members.some(m => m.id === id && m.active !== false))
         if (!memberIds.length) continue
-        await createTaskRecord({ title: task.title, sector_id: task.sector_id || '', quantity: task.quantity_target || task.goal || '', deadline: task.deadline_time || '', priority: task.priority || 'normal', notes: task.notes || '', member_ids: memberIds, schedule_date: taskDate, event_description: `ProgramaÃ§Ã£o copiada de ${copyDate}` })
+        await createTaskRecord({ title: task.title, sector_id: task.sector_id || '', quantity: task.quantity_target || task.goal || '', deadline: task.deadline_time || '', priority: task.priority || 'normal', notes: task.notes || '', member_ids: memberIds, schedule_date: taskDate, event_description: `Programação copiada de ${copyDate}` })
         copied++
       }
       setViewDate(taskDate); await loadAll(); alert(`${copied} tarefa(s) copiadas com sucesso.`)
-    } catch (error) { setMsg(error?.message || 'NÃ£o foi possÃ­vel copiar a programaÃ§Ã£o.') }
+    } catch (error) { setMsg(error?.message || 'Não foi possível copiar a programação.') }
     finally { setSavingQuick(false) }
   }
 
   async function duplicateTask(task) {
     if (!['owner', 'admin'].includes(accessRole)) return
     const memberIds = taskMembers.filter(link => link.task_id === task.id && link.active !== false).map(link => link.member_id)
-    if (!memberIds.length) return alert('Essa tarefa nÃ£o possui funcionÃ¡rio ativo para duplicar.')
+    if (!memberIds.length) return alert('Essa tarefa não possui funcionário ativo para duplicar.')
     try {
       await createTaskRecord({ title: task.title, sector_id: task.sector_id || '', quantity: task.quantity_target || task.goal || '', deadline: task.deadline_time || '', priority: task.priority || 'normal', notes: task.notes || '', member_ids: memberIds, schedule_date: task.schedule_date || viewDate, event_description: 'Tarefa duplicada' })
       await loadAll()
-    } catch (error) { setMsg(error?.message || 'NÃ£o foi possÃ­vel duplicar a tarefa.') }
+    } catch (error) { setMsg(error?.message || 'Não foi possível duplicar a tarefa.') }
   }
 
   async function addTask() {
@@ -875,7 +875,7 @@ export default function Home() {
     }
 
     if (!selectedMembers.length) {
-      alert('Selecione pelo menos um funcionÃ¡rio.')
+      alert('Selecione pelo menos um funcionário.')
       return
     }
 
@@ -1022,7 +1022,7 @@ export default function Home() {
 
     if (!assigned.length) {
       alert(
-        'Essa tarefa nÃ£o possui funcionÃ¡rios vinculados.'
+        'Essa tarefa não possui funcionários vinculados.'
       )
       return
     }
@@ -1075,7 +1075,7 @@ export default function Home() {
       task.id,
       null,
       'production_started',
-      `${assigned.length} funcionÃ¡rio(s) iniciaram a produÃ§Ã£o`
+      `${assigned.length} funcionário(s) iniciaram a produção`
     )
 
     await refreshProduction()
@@ -1222,7 +1222,7 @@ export default function Home() {
         task.id,
         member.id,
         'task_completed',
-        `Meta concluÃ­da. Ãšltimo registro por ${member.name}.`
+        `Meta concluída. Último registro por ${member.name}.`
       )
     }
 
@@ -1258,7 +1258,7 @@ export default function Home() {
       value < 0
     ) {
       alert(
-        'Digite uma quantidade vÃ¡lida.'
+        'Digite uma quantidade válida.'
       )
       return
     }
@@ -1390,7 +1390,7 @@ export default function Home() {
     ) {
       const ok =
         window.confirm(
-          `A tarefa estÃ¡ em ${current}/${target}. Deseja concluir mesmo assim?`
+          `A tarefa está em ${current}/${target}. Deseja concluir mesmo assim?`
         )
 
       if (!ok) return
@@ -1419,7 +1419,7 @@ export default function Home() {
       task.id,
       null,
       'task_completed',
-      'Tarefa concluÃ­da'
+      'Tarefa concluída'
     )
 
     await refreshProduction()
@@ -1464,7 +1464,7 @@ export default function Home() {
 
     if (!available.length) {
       alert(
-        'Todos os funcionÃ¡rios ativos jÃ¡ estÃ£o nesta tarefa.'
+        'Todos os funcionários ativos já estão nesta tarefa.'
       )
       return
     }
@@ -1490,7 +1490,7 @@ export default function Home() {
       ]
 
     if (!member) {
-      alert('FuncionÃ¡rio invÃ¡lido.')
+      alert('Funcionário inválido.')
       return
     }
 
@@ -1560,7 +1560,7 @@ export default function Home() {
 
     if (current.length <= 1) {
       alert(
-        'A tarefa precisa manter pelo menos um funcionÃ¡rio.'
+        'A tarefa precisa manter pelo menos um funcionário.'
       )
       return
     }
@@ -1586,7 +1586,7 @@ export default function Home() {
       ]
 
     if (!member) {
-      alert('FuncionÃ¡rio invÃ¡lido.')
+      alert('Funcionário inválido.')
       return
     }
 
@@ -1660,7 +1660,7 @@ export default function Home() {
     if (!task || !String(editForm.title || '').trim()) return
     const raw = String(editForm.quantity ?? '').trim()
     const q = raw === '' ? null : Number(raw.replace(',', '.'))
-    if (q !== null && (!Number.isFinite(q) || q < 0)) { setMsg('Quantidade invÃ¡lida.'); return }
+    if (q !== null && (!Number.isFinite(q) || q < 0)) { setMsg('Quantidade inválida.'); return }
     const { error } = await db.from('tasks').update({
       title: String(editForm.title).trim(), quantity_target: q, goal: q === null ? null : String(q),
       schedule_date: editForm.schedule_date || localDate(), deadline_time: editForm.deadline_time || null,
@@ -1757,7 +1757,7 @@ export default function Home() {
 
     if (!list.length) {
       alert(
-        `${member.name} nÃ£o possui tarefas nesta data.`
+        `${member.name} não possui tarefas nesta data.`
       )
       return
     }
@@ -1800,7 +1800,7 @@ export default function Home() {
               String(
                 t.quantity_target ||
                 t.goal ||
-                'â€”'
+                '—'
               )
             )}
           </div>
@@ -1820,7 +1820,7 @@ export default function Home() {
             t.deadline_time
               ? `
               <div>
-                HorÃ¡rio:
+                Horário:
                 ${safe(
                   t.deadline_time
                     .slice(0, 5)
@@ -1834,7 +1834,7 @@ export default function Home() {
             t.notes
               ? `
               <div>
-                ObservaÃ§Ã£o:
+                Observação:
                 ${safe(t.notes)}
               </div>
             `
@@ -1845,7 +1845,7 @@ export default function Home() {
             margin-top:14px;
             font-size:16px;
           ">
-            â˜ ConcluÃ­do
+            ☐ Concluído
           </div>
         </div>
       `
@@ -1874,14 +1874,14 @@ export default function Home() {
       <h2 style="
         text-align:center;
       ">
-        PROGRAMAÃ‡ÃƒO DO DIA
+        PROGRAMAÇÃO DO DIA
       </h2>
 
       <div style="
         font-size:18px;
         margin-bottom:15px;
       ">
-        <b>FuncionÃ¡rio:</b>
+        <b>Funcionário:</b>
         ${safe(member.name)}
         <br>
 
@@ -1926,7 +1926,7 @@ export default function Home() {
           <meta charset="utf-8">
 
           <title>
-            MG Oper - ProgramaÃ§Ã£o
+            MG Oper - Programação
           </title>
 
           <style>
@@ -2160,7 +2160,7 @@ const dayDone =
           </div>
 
           <h1>
-            GestÃ£o operacional
+            Gestão operacional
             em tempo real.
           </h1>
 
@@ -2240,7 +2240,7 @@ const dayDone =
           <div style={{ margin: '22px 0 12px', borderTop: '1px solid var(--border)', paddingTop: 18 }}>
             <b>Foi convidado para uma empresa?</b>
             <p style={{ margin: '6px 0 10px' }}>
-              Abra o link recebido ou digite o cÃ³digo enviado pelo administrador.
+              Abra o link recebido ou digite o código enviado pelo administrador.
             </p>
             <input
               placeholder="Ex.: MG-ABC123"
@@ -2311,7 +2311,7 @@ const dayDone =
           onClick={() => setMobileMenu(!mobileMenu)}
           aria-label="Abrir menu"
         >
-          â˜°
+          ☰
         </button>
 
         <nav className={mobileMenu ? 'mobile-open' : ''}>
@@ -2324,7 +2324,7 @@ const dayDone =
           </button>
 
           {['owner', 'admin'].includes(accessRole) && (
-            <button onClick={() => setTab('programacao')}>ProgramaÃ§Ã£o</button>
+            <button onClick={() => setTab('programacao')}>Programação</button>
           )}
 
           <button
@@ -2332,7 +2332,7 @@ const dayDone =
               setTab('agora')
             }
           >
-            ðŸŸ¢ Produzindo Agora
+            🟢 Produzindo Agora
           </button>
 
           <button
@@ -2348,7 +2348,7 @@ const dayDone =
               setTab('historico')
             }
           >
-            HistÃ³rico
+            Histórico
           </button>
 
           <button
@@ -2356,7 +2356,7 @@ const dayDone =
               setTab('tv')
             }
           >
-            ðŸ“º TV
+            📺 TV
           </button>
 
           {['owner', 'admin'].includes(accessRole) && (
@@ -2375,10 +2375,10 @@ const dayDone =
             </select>
           )}
           <span className="account-badge">
-            {company.name.split(' ')[0]} Â· {accessRole === 'owner' ? 'ProprietÃ¡rio' : accessRole === 'admin' ? 'Administrador' : 'FuncionÃ¡rio'}
+            {company.name.split(' ')[0]} · {accessRole === 'owner' ? 'Proprietário' : accessRole === 'admin' ? 'Administrador' : 'Funcionário'}
           </span>
 
-          <span className="sync-badge" aria-live="polite">{syncStatus === 'realtime' ? 'â— Ao vivo' : 'â†» Sincronizando'}</span>
+          <span className="sync-badge" aria-live="polite">{syncStatus === 'realtime' ? '● Ao vivo' : '↻ Sincronizando'}</span>
           <button
             className="link"
             onClick={logout}
@@ -2393,11 +2393,11 @@ const dayDone =
         {tab === 'dashboard' && (
           <>
             <p className="eyebrow">
-              CENTRAL DE PRODUÃ‡ÃƒO
+              CENTRAL DE PRODUÇÃO
             </p>
 
             <h1>
-              ProduÃ§Ã£o de{' '}
+              Produção de{' '}
               {formatDate(viewDate)}
             </h1>
 
@@ -2420,7 +2420,7 @@ const dayDone =
                     <div className="card" key={item.unit.id}>
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
                       <strong>{item.done}/{item.target}</strong>
-                      <p>{item.percent}% concluÃƒÂ­do</p>
+                      <p>{item.percent}% concluÃ­do</p>
                       <small>{item.active} produzindo agora</small>
                     </div>
                   ))}
@@ -2440,14 +2440,14 @@ const dayDone =
 
               <Card
                 n={`${dayPercent}%`}
-                t="Meta concluÃ­da"
+                t="Meta concluída"
               />
 
               <Card
                 n={lateCount}
-                t="Precisam de atenÃ§Ã£o"
+                t="Precisam de atenção"
               />
-              <Card n={completedCount} t="Tarefas concluÃ­das" />
+              <Card n={completedCount} t="Tarefas concluídas" />
               <Card n={activeTaskCount} t="Tarefas em andamento" />
             </div>
 
@@ -2457,7 +2457,7 @@ const dayDone =
                 <div className="sector-grid">{sectorSummary.map(({ sector, tasks: count, done, target }) =>
                   <div className="sector-card" key={sector.id}>
                     <b>{sector.name}</b><small>{count} tarefa(s)</small>
-                    <strong>{done} / {target || 'â€”'}</strong>
+                    <strong>{done} / {target || '—'}</strong>
                     <Progress percent={target ? Math.min(100, Math.round(done / target * 100)) : 0} />
                   </div>
                 )}</div>}
@@ -2486,7 +2486,7 @@ const dayDone =
               }}
             >
               <h2>
-                ProgramaÃ§Ã£o do dia
+                Programação do dia
               </h2>
 
               {visibleTasks.length ===
@@ -2516,22 +2516,22 @@ const dayDone =
             </p>
 
             <h1>
-              ProgramaÃ§Ã£o
+              Programação
             </h1>
 
             <section className="panel" style={{ marginBottom: 20, borderColor: 'rgba(94,230,168,.35)' }}>
-              <p className="eyebrow">âœ¨ ASSISTENTE IA</p>
+              <p className="eyebrow">✨ ASSISTENTE IA</p>
               <h2 style={{ marginBottom: 4 }}>Diga o que precisa ser feito</h2>
-              <small>A IA monta um rascunho. Nada Ã© salvo atÃ© vocÃª revisar e confirmar.</small>
+              <small>A IA monta um rascunho. Nada é salvo até você revisar e confirmar.</small>
               <textarea
                 rows={4}
                 style={{ marginTop: 12 }}
-                placeholder="Ex.: AmanhÃ£ Jane faz 100 Biotina no Manual Ã s 10h. Gabriel faz 30 Dutasterida, prioridade alta."
+                placeholder="Ex.: Amanhã Jane faz 100 Biotina no Manual às 10h. Gabriel faz 30 Dutasterida, prioridade alta."
                 value={aiPrompt}
                 onChange={e => setAiPrompt(e.target.value)}
               />
               <div className="actions" style={{ flexWrap: 'wrap' }}>
-                <button onClick={buildWithAI} disabled={aiLoading}>{aiLoading ? 'âœ¨ Montando...' : 'âœ¨ Montar com IA'}</button>
+                <button onClick={buildWithAI} disabled={aiLoading}>{aiLoading ? '✨ Montando...' : '✨ Montar com IA'}</button>
                 {aiPrompt && <button className="secondary" onClick={() => { setAiPrompt(''); setAiDraft(null); setAiWarnings([]) }}>Limpar</button>}
               </div>
               {aiDraft?.tasks?.length > 0 && (
@@ -2542,19 +2542,19 @@ const dayDone =
                     {aiDraft.tasks.map((task, index) => (
                       <div key={index} style={{ padding: 10, border: '1px solid #253040', borderRadius: 10 }}>
                         <b>{task.title}</b>
-                        <div><small>{task.quantity ? `Qtd. ${task.quantity}` : 'Sem quantidade'} Â· {task.sector_name || 'Sem setor'} Â· {(task.member_names || []).join(', ') || 'Sem funcionÃ¡rio'}{task.deadline ? ` Â· ${task.deadline}` : ''}</small></div>
+                        <div><small>{task.quantity ? `Qtd. ${task.quantity}` : 'Sem quantidade'} · {task.sector_name || 'Sem setor'} · {(task.member_names || []).join(', ') || 'Sem funcionário'}{task.deadline ? ` · ${task.deadline}` : ''}</small></div>
                       </div>
                     ))}
                   </div>
                   <div className="actions" style={{ marginTop: 12, flexWrap: 'wrap' }}>
-                    <button onClick={applyAIDraft}>âœ“ Aplicar na ProgramaÃ§Ã£o RÃ¡pida</button>
+                    <button onClick={applyAIDraft}>✓ Aplicar na Programação Rápida</button>
                     <button className="secondary" onClick={() => setAiDraft(null)}>Descartar</button>
                   </div>
                 </div>
               )}
               {aiWarnings.length > 0 && (
                 <div style={{ marginTop: 12, padding: 12, border: '1px solid #8a6d1d', borderRadius: 10, background: 'rgba(245,158,11,.07)' }}>
-                  <b>âš ï¸ Confira antes de salvar</b>
+                  <b>⚠️ Confira antes de salvar</b>
                   {aiWarnings.map((warning, index) => <div key={index}><small>{warning}</small></div>)}
                 </div>
               )}
@@ -2563,12 +2563,12 @@ const dayDone =
             <section id="programacao-rapida" className="panel" style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div>
-                  <p className="eyebrow">PROGRAMAÃ‡ÃƒO RÃPIDA</p>
+                  <p className="eyebrow">PROGRAMAÇÃO RÁPIDA</p>
                   <h2 style={{ marginBottom: 4 }}>Monte o dia inteiro de uma vez</h2>
-                  <small>Adicione vÃ¡rias tarefas e salve tudo com um Ãºnico clique.</small>
+                  <small>Adicione várias tarefas e salve tudo com um único clique.</small>
                 </div>
                 <div style={{ minWidth: 190 }}>
-                  <label>Data da programaÃ§Ã£o</label>
+                  <label>Data da programação</label>
                   <input type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)} />
                 </div>
               </div>
@@ -2579,8 +2579,8 @@ const dayDone =
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       <b>Tarefa {index + 1}</b>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="secondary" onClick={() => duplicateQuickRow(row.id)}>â§‰ Duplicar linha</button>
-                        <button className="secondary" onClick={() => removeQuickRow(row.id)}>ðŸ—‘ Remover</button>
+                        <button className="secondary" onClick={() => duplicateQuickRow(row.id)}>⧉ Duplicar linha</button>
+                        <button className="secondary" onClick={() => removeQuickRow(row.id)}>🗑 Remover</button>
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10, marginTop: 10 }}>
@@ -2591,7 +2591,7 @@ const dayDone =
                       <select value={row.priority} onChange={e => updateQuickRow(row.id, 'priority', e.target.value)}><option value="low">Prioridade baixa</option><option value="normal">Prioridade normal</option><option value="high">Prioridade alta</option></select>
                     </div>
                     <div style={{ marginTop: 8 }}>
-                      <small style={{ display: 'block', marginBottom: 6 }}>FuncionÃ¡rio(s)</small>
+                      <small style={{ display: 'block', marginBottom: 6 }}>Funcionário(s)</small>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                         {activeMembers.map(m => (
                           <label key={m.id} style={{ marginTop: 0, padding: '8px 10px', border: '1px solid #253040', borderRadius: 9, cursor: 'pointer', background: (row.member_ids || []).includes(m.id) ? 'rgba(94,230,168,.10)' : '#0b1119' }}>
@@ -2604,12 +2604,12 @@ const dayDone =
                 ))}
               </div>
               <div className="actions" style={{ marginTop: 14, flexWrap: 'wrap' }}>
-                <button className="secondary" onClick={addQuickRow}>ï¼‹ Adicionar tarefa</button>
-                <button onClick={saveQuickProgramming} disabled={savingQuick}>{savingQuick ? 'Salvando...' : 'âœ“ Salvar programaÃ§Ã£o do dia'}</button>
+                <button className="secondary" onClick={addQuickRow}>＋ Adicionar tarefa</button>
+                <button onClick={saveQuickProgramming} disabled={savingQuick}>{savingQuick ? 'Salvando...' : '✓ Salvar programação do dia'}</button>
               </div>
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #253040' }}>
-                <h3 style={{ margin: '0 0 6px' }}>â§‰ Copiar programaÃ§Ã£o de outra data</h3>
-                <small>Reaproveite tarefas, funcionÃ¡rios, setores, quantidades e horÃ¡rios.</small>
+                <h3 style={{ margin: '0 0 6px' }}>⧉ Copiar programação de outra data</h3>
+                <small>Reaproveite tarefas, funcionários, setores, quantidades e horários.</small>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
                   <input type="date" value={copyDate} onChange={e => setCopyDate(e.target.value)} style={{ maxWidth: 220 }} />
                   <button className="secondary" onClick={copyProgrammingFromDate} disabled={savingQuick}>Copiar para {taskDate.split('-').reverse().join('/')}</button>
@@ -2684,7 +2684,7 @@ const dayDone =
                 />
 
                 <label>
-                  HorÃ¡rio desejado
+                  Horário desejado
                 </label>
 
                 <input
@@ -2725,7 +2725,7 @@ const dayDone =
                 </select>
 
                 <textarea
-                  placeholder="ObservaÃ§Ãµes..."
+                  placeholder="Observações..."
                   value={taskNotes}
                   onChange={
                     e =>
@@ -2743,7 +2743,7 @@ const dayDone =
                 />
 
                 <h3>
-                  FuncionÃ¡rio(s)
+                  Funcionário(s)
                 </h3>
 
                 <div
@@ -2790,13 +2790,13 @@ const dayDone =
                 <button
                   onClick={addTask}
                 >
-                  Criar programaÃ§Ã£o
+                  Criar programação
                 </button>
               </section>
 
               <section className="panel">
                 <h2>
-                  Consultar programaÃ§Ã£o
+                  Consultar programação
                 </h2>
 
                 <input
@@ -2822,7 +2822,7 @@ const dayDone =
                   }
                 >
                   <option value="">
-                    Todos os funcionÃ¡rios
+                    Todos os funcionários
                   </option>
 
                   {members.map(
@@ -2879,7 +2879,7 @@ const dayDone =
                       }
                     }}
                   >
-                    ðŸ–¨ Imprimir programaÃ§Ã£o do funcionÃ¡rio
+                    🖨 Imprimir programação do funcionário
                   </button>
                 )}
 
@@ -2937,7 +2937,7 @@ const dayDone =
                     <div className="card" key={item.unit.id}>
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
                       <strong>{item.done}/{item.target}</strong>
-                      <p>{item.percent}% concluÃƒÂ­do</p>
+                      <p>{item.percent}% concluÃ­do</p>
                       <small>{item.active} produzindo agora</small>
                     </div>
                   ))}
@@ -2945,13 +2945,13 @@ const dayDone =
               </section>
             )}
             <div className="stats"><Card n={producingNow} t="Pessoas ativas" /><Card n={activeTaskCount} t="Tarefas em andamento" /></div>
-            <p className="section-note">AtualizaÃ§Ã£o {syncStatus === 'realtime' ? 'ao vivo' : 'automÃ¡tica com reconexÃ£o'} Â· {new Date().toLocaleTimeString('pt-BR')}</p>
+            <p className="section-note">Atualização {syncStatus === 'realtime' ? 'ao vivo' : 'automática com reconexão'} · {new Date().toLocaleTimeString('pt-BR')}</p>
 
             {activeTaskCount ===
               0 && (
               <section className="panel">
                 <p>
-                  NinguÃ©m estÃ¡
+                  Ninguém está
                   produzindo neste
                   momento.
                 </p>
@@ -2999,14 +2999,14 @@ const dayDone =
                     <div className="card" key={item.unit.id}>
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
                       <strong>{item.done}/{item.target}</strong>
-                      <p>{item.percent}% concluÃƒÂ­do</p>
+                      <p>{item.percent}% concluÃ­do</p>
                       <small>{item.active} produzindo agora</small>
                     </div>
                   ))}
                 </div>
               </section>
             )}
-            <div className="stats"><Card n={performance.filter(x => canManage || x.member.id === linkedMemberId).reduce((n,x) => n + x.quantity, 0)} t="ProduÃ§Ã£o registrada" /><Card n={performance.filter(x => (canManage || x.member.id === linkedMemberId) && x.quantity > 0).length} t="Pessoas com produÃ§Ã£o" /></div>
+            <div className="stats"><Card n={performance.filter(x => canManage || x.member.id === linkedMemberId).reduce((n,x) => n + x.quantity, 0)} t="Produção registrada" /><Card n={performance.filter(x => (canManage || x.member.id === linkedMemberId) && x.quantity > 0).length} t="Pessoas com produção" /></div>
             <section className="panel" style={{ marginTop: 20 }}>
               {performance.filter(x => canManage || x.member.id === linkedMemberId).map(
                 (x, i) => (
@@ -3052,11 +3052,11 @@ const dayDone =
           'historico' && (
           <>
             <p className="eyebrow">
-              HISTÃ“RICO
+              HISTÓRICO
             </p>
 
             <h1>
-              ProduÃ§Ã£o por data
+              Produção por data
             </h1>
 
             <input
@@ -3070,7 +3070,7 @@ const dayDone =
               }
             />
 
-            <input aria-label="Buscar no histÃ³rico" placeholder="Buscar tarefa, setor ou pessoa" value={historyQuery} onChange={e => setHistoryQuery(e.target.value)} />
+            <input aria-label="Buscar no histórico" placeholder="Buscar tarefa, setor ou pessoa" value={historyQuery} onChange={e => setHistoryQuery(e.target.value)} />
             {company?.id === 'all' && (
               <section className="panel">
                 <h2>Resumo por unidade</h2>
@@ -3079,14 +3079,14 @@ const dayDone =
                     <div className="card" key={item.unit.id}>
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
                       <strong>{item.done}/{item.target}</strong>
-                      <p>{item.percent}% concluÃƒÂ­do</p>
+                      <p>{item.percent}% concluÃ­do</p>
                       <small>{item.active} produzindo agora</small>
                     </div>
                   ))}
                 </div>
               </section>
             )}
-            <div className="stats"><Card n={visibleTasks.length} t="Tarefas programadas" /><Card n={completedCount} t="ConcluÃ­das" /><Card n={dayDone} t="Quantidade produzida" /></div>
+            <div className="stats"><Card n={visibleTasks.length} t="Tarefas programadas" /><Card n={completedCount} t="Concluídas" /><Card n={dayDone} t="Quantidade produzida" /></div>
             <section className="panel" style={{ marginTop: 20 }}>
               {visibleTasks.length ===
                 0 && (
@@ -3108,7 +3108,7 @@ const dayDone =
 
                       <br />
 
-                      <small>{sectorById(t.sector_id)} Â· {t.status === 'completed' ? 'ConcluÃ­da' : 'Em andamento'} Â· </small><br />
+                      <small>{sectorById(t.sector_id)} · {t.status === 'completed' ? 'Concluída' : 'Em andamento'} · </small><br />
                       <small>
                         {membersForTask(
                           t.id
@@ -3121,7 +3121,7 @@ const dayDone =
                             ', '
                           ) ||
                           t.assignee ||
-                          'Sem responsÃ¡vel'}
+                          'Sem responsável'}
                       </small>
                     </div>
 
@@ -3131,7 +3131,7 @@ const dayDone =
                       /{' '}
                       {t.quantity_target ||
                         t.goal ||
-                        'â€”'}
+                        '—'}
                     </strong>
                   </div>
                 )
@@ -3151,8 +3151,8 @@ const dayDone =
             </p>
 
             <h1>
-              ðŸ“º MG Oper â€”
-              ProduÃ§Ã£o Agora
+              📺 MG Oper —
+              Produção Agora
             </h1>
 
             {company?.id === 'all' && (
@@ -3163,7 +3163,7 @@ const dayDone =
                     <div className="card" key={item.unit.id}>
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
                       <strong>{item.done}/{item.target}</strong>
-                      <p>{item.percent}% concluÃƒÂ­do</p>
+                      <p>{item.percent}% concluÃ­do</p>
                       <small>{item.active} produzindo agora</small>
                     </div>
                   ))}
@@ -3183,7 +3183,7 @@ const dayDone =
 
               <Card
                 n={lateCount}
-                t="AtenÃ§Ã£o"
+                t="Atenção"
               />
             </div>
 
@@ -3219,7 +3219,7 @@ const dayDone =
             </p>
 
             <h1>
-              FuncionÃ¡rios
+              Funcionários
             </h1>
 
             <div className="two">
@@ -3270,27 +3270,27 @@ const dayDone =
                   }
                 >
                   Adicionar
-                  funcionÃ¡rio
+                  funcionário
                 </button>
               </section>
 
               <section className="panel">
                 <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: '1px solid var(--border)' }}>
-                  <b>ðŸ” Acessos ao MG Oper</b>
+                  <b>🔐 Acessos ao MG Oper</b>
                   <p style={{ margin: '6px 0 12px' }}>
-                    Gere um link e compartilhe com a pessoa. Ela cria a prÃ³pria conta e entra na sua empresa com o convite.
+                    Gere um link e compartilhe com a pessoa. Ela cria a própria conta e entra na sua empresa com o convite.
                   </p>
                   <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
-                    <option value="operator">FuncionÃ¡rio</option>
+                    <option value="operator">Funcionário</option>
                     <option value="admin">Administrador</option>
                   </select>
                   <select value={inviteMember} onChange={e => setInviteMember(e.target.value)}>
-                    <option value="">Sem vincular a funcionÃ¡rio</option>
+                    <option value="">Sem vincular a funcionário</option>
                     {members.filter(m => m.active !== false).map(m => (
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                   </select>
-                  <button onClick={createInvite}>ï¼‹ Gerar link de convite</button>
+                  <button onClick={createInvite}>＋ Gerar link de convite</button>
 
                   {inviteLink && <p className="invite-link"><a href={inviteLink}>{inviteLink}</a></p>}
                   {invites.filter(i => i.active).slice(0, 8).map(i => (
@@ -3298,8 +3298,8 @@ const dayDone =
                       <div>
                         <b>{i.code}</b><br />
                         <small>
-                          {i.role === 'admin' ? 'Administrador' : 'FuncionÃ¡rio'}
-                          {i.member_id ? ` Â· ${members.find(m => m.id === i.member_id)?.name || 'FuncionÃ¡rio'}` : ''}
+                          {i.role === 'admin' ? 'Administrador' : 'Funcionário'}
+                          {i.member_id ? ` · ${members.find(m => m.id === i.member_id)?.name || 'Funcionário'}` : ''}
                         </small>
                       </div>
                       <div className="invite-actions"><button className="secondary" onClick={() => copyInviteLink(i)}>Copiar link</button><button className="secondary" onClick={() => shareInviteLink(i)}>Compartilhar</button><button className="secondary" onClick={() => revokeInvite(i)}>Revogar</button></div>
@@ -3308,11 +3308,11 @@ const dayDone =
                 </div>
 
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                  <b>Ferramentas do proprietÃ¡rio</b>
-                  <p style={{ margin: '6px 0 12px' }}>A limpeza de dados de teste deve ser usada somente apÃ³s revisar cuidadosamente a confirmaÃ§Ã£o exibida pelo sistema.</p>
+                  <b>Ferramentas do proprietário</b>
+                  <p style={{ margin: '6px 0 12px' }}>A limpeza de dados de teste deve ser usada somente após revisar cuidadosamente a confirmação exibida pelo sistema.</p>
                   {accessRole === 'owner' && (
                     <button className="secondary" onClick={clearTestData}>
-                      ðŸ§¹ Limpar dados de teste
+                      🧹 Limpar dados de teste
                     </button>
                   )}
                 </div>
@@ -3334,7 +3334,7 @@ const dayDone =
                           {sectorById(
                             m.sector_id
                           )}{' '}
-                          Â·{' '}
+                          ·{' '}
                           {m.active ===
                           false
                             ? 'Inativo'
@@ -3347,7 +3347,7 @@ const dayDone =
                           className="secondary"
                           onClick={() => editMember(m)}
                         >
-                          âœï¸ Editar
+                          ✏️ Editar
                         </button>
 
                         <button
@@ -3361,7 +3361,7 @@ const dayDone =
                           className="secondary"
                           onClick={() => deleteMember(m)}
                         >
-                          ðŸ—‘ Excluir
+                          🗑 Excluir
                         </button>
                       </div>
                     </div>
@@ -3410,10 +3410,10 @@ const dayDone =
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
                   <b>Zerar setores</b>
                   <p style={{ margin: '6px 0 12px' }}>
-                    Use somente se tambÃ©m quiser recriar todos os setores.
+                    Use somente se também quiser recriar todos os setores.
                   </p>
                   <button className="secondary" onClick={clearSectors}>
-                    ðŸ§¹ Excluir todos os setores
+                    🧹 Excluir todos os setores
                   </button>
                 </div>
 
@@ -3432,14 +3432,14 @@ const dayDone =
                           className="secondary"
                           onClick={() => editSector(s)}
                         >
-                          âœï¸ Editar
+                          ✏️ Editar
                         </button>
 
                         <button
                           className="secondary"
                           onClick={() => deleteSector(s)}
                         >
-                          ðŸ—‘ Excluir
+                          🗑 Excluir
                         </button>
                       </div>
                     </div>
@@ -3458,8 +3458,8 @@ const dayDone =
             <section className="panel" onClick={e => e.stopPropagation()} style={{
               width: 'min(560px, 100%)', maxHeight: '90vh', overflowY: 'auto'
             }}>
-              <p className="eyebrow">EDIÃ‡ÃƒO</p>
-              <h2>{editModal.type === 'task' ? 'Editar tarefa' : editModal.type === 'member' ? 'Editar funcionÃ¡rio' : 'Editar setor'}</h2>
+              <p className="eyebrow">EDIÇÃO</p>
+              <h2>{editModal.type === 'task' ? 'Editar tarefa' : editModal.type === 'member' ? 'Editar funcionário' : 'Editar setor'}</h2>
 
               {editModal.type === 'sector' && <>
                 <label>Nome do setor</label>
@@ -3467,7 +3467,7 @@ const dayDone =
               </>}
 
               {editModal.type === 'member' && <>
-                <label>Nome do funcionÃ¡rio</label>
+                <label>Nome do funcionário</label>
                 <input autoFocus value={editForm.name || ''} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
                 <label>Setor</label>
                 <select value={editForm.sector_id || ''} onChange={e => setEditForm(f => ({ ...f, sector_id: e.target.value }))}>
@@ -3483,7 +3483,7 @@ const dayDone =
                 <input inputMode="decimal" value={editForm.quantity ?? ''} onChange={e => setEditForm(f => ({ ...f, quantity: e.target.value }))} />
                 <label>Data</label>
                 <input type="date" value={editForm.schedule_date || ''} onChange={e => setEditForm(f => ({ ...f, schedule_date: e.target.value }))} />
-                <label>HorÃ¡rio desejado</label>
+                <label>Horário desejado</label>
                 <input type="time" value={editForm.deadline_time || ''} onChange={e => setEditForm(f => ({ ...f, deadline_time: e.target.value }))} />
                 <label>Prioridade</label>
                 <select value={editForm.priority || 'normal'} onChange={e => setEditForm(f => ({ ...f, priority: e.target.value }))}>
@@ -3493,12 +3493,12 @@ const dayDone =
                 <select value={editForm.sector_id || ''} onChange={e => setEditForm(f => ({ ...f, sector_id: e.target.value }))}>
                   <option value="">Sem setor</option>{sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                <label>ObservaÃ§Ã£o</label>
+                <label>Observação</label>
                 <textarea rows={4} value={editForm.notes || ''} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
               </>}
 
               <div className="actions" style={{ marginTop: 18 }}>
-                <button onClick={editModal.type === 'task' ? saveTaskEdit : editModal.type === 'member' ? saveMemberEdit : saveSectorEdit}>âœ“ Salvar alteraÃ§Ãµes</button>
+                <button onClick={editModal.type === 'task' ? saveTaskEdit : editModal.type === 'member' ? saveMemberEdit : saveSectorEdit}>✓ Salvar alterações</button>
                 <button className="secondary" onClick={closeEditModal}>Cancelar</button>
               </div>
             </section>
@@ -3606,7 +3606,7 @@ const done =
 
           {working && (
             <span>
-              ðŸŸ¢{' '}
+              🟢{' '}
               {sessions.length}{' '}
               produzindo agora
             </span>
@@ -3614,13 +3614,13 @@ const done =
 
           {late && (
             <span>
-              ðŸš¨ ATRASADA
+              🚨 ATRASADA
             </span>
           )}
         </div>
 
         <p>
-          ðŸ­ {sector} Â·
+          🏭 {sector} ·
           Prioridade:{' '}
           {priorityName(
             task.priority
@@ -3629,13 +3629,13 @@ const done =
 
         {task.notes && (
           <p>
-            ðŸ“ {task.notes}
+            📝 {task.notes}
           </p>
         )}
 
         {task.deadline_time && (
           <p>
-            â° Prazo:{' '}
+            ⏰ Prazo:{' '}
             {task.deadline_time.slice(
               0,
               5
@@ -3667,9 +3667,9 @@ const done =
 
             <strong>
               {done} /{' '}
-              {target || 'â€”'}{' '}
+              {target || '—'}{' '}
               {target
-                ? `â€” ${percent}%`
+                ? `— ${percent}%`
                 : ''}
             </strong>
           </div>
@@ -3686,14 +3686,14 @@ const done =
             marginTop: 20
           }}
         >
-          ðŸ‘¥ ProduÃ§Ã£o
+          👥 Produção
           individual
         </h3>
 
         {people.length ===
           0 && (
           <p>
-            Nenhum funcionÃ¡rio
+            Nenhum funcionário
             vinculado.
           </p>
         )}
@@ -3745,8 +3745,8 @@ const done =
                       }}
                     >
                       {isWorking
-                        ? 'ðŸŸ¢'
-                        : 'âšª'}{' '}
+                        ? '🟢'
+                        : '⚪'}{' '}
                       {
                         person.name
                       }
@@ -3788,7 +3788,7 @@ const done =
                             )
                           }
                         >
-                          âˆ’5
+                          −5
                         </button>
 
                         <button
@@ -3812,7 +3812,7 @@ const done =
                             )
                           }
                         >
-                          âœŽ Qtd.
+                          ✎ Qtd.
                         </button>
                       </>
                     )}
@@ -3831,8 +3831,8 @@ const done =
               marginTop: 15
             }}
           >
-            â±ï¸ Tempo da
-            produÃ§Ã£o:{' '}
+            ⏱️ Tempo da
+            produção:{' '}
             <b>
               {formatDuration(
                 Math.min(
@@ -3864,7 +3864,7 @@ const done =
                 onStart(task)
               }
             >
-              â–¶ Iniciar todos
+              ▶ Iniciar todos
             </button>
           )}
 
@@ -3890,7 +3890,7 @@ const done =
                   )
                 }
               >
-                âˆ’ Pessoa
+                − Pessoa
               </button>
 
               <button
@@ -3900,7 +3900,7 @@ const done =
                   )
                 }
               >
-                âœ“ Concluir tarefa
+                ✓ Concluir tarefa
               </button>
             </>
           )}
@@ -3909,21 +3909,21 @@ const done =
             className="secondary"
             onClick={() => onDuplicate(task)}
           >
-            â§‰ Duplicar
+            ⧉ Duplicar
           </button>}
 
           {canManage && <button
             className="secondary"
             onClick={() => onEdit(task)}
           >
-            âœï¸ Editar
+            ✏️ Editar
           </button>}
 
           {canManage && <button
             className="secondary"
             onClick={() => onDelete(task)}
           >
-            ðŸ—‘ Excluir
+            🗑 Excluir
           </button>}
         </div>
       </div>
@@ -3975,12 +3975,12 @@ function TVTask({
           marginBottom: 5
         }}
       >
-        ðŸŸ¢ {task.title}
+        🟢 {task.title}
       </h2>
 
       <h2>
         TOTAL: {done} /{' '}
-        {target || 'â€”'} â€”{' '}
+        {target || '—'} —{' '}
         {percent}%
       </h2>
 
@@ -4009,7 +4009,7 @@ function TVTask({
               }}
             >
               <b>
-                ðŸ‘¤ {person.name}
+                👤 {person.name}
               </b>
 
               <div
@@ -4031,7 +4031,7 @@ function TVTask({
       {sessions.length >
         0 && (
         <p>
-          â±ï¸{' '}
+          ⏱️{' '}
           {formatDuration(
             Math.min(
               ...sessions.map(
@@ -4088,7 +4088,7 @@ function Card({ n, t }) {
 }
 
 function formatDate(value) {
-  if (!value) return 'â€”'
+  if (!value) return '—'
 
   const [y, m, d] =
     value
