@@ -2417,7 +2417,7 @@ const dayDone =
                 <h2>Resumo por unidade</h2>
                 <div className="stats">
                   {unitSummary.map(item => (
-                    <div className="card" key={item.unit.id}>
+                    <div className="card" key={item.unit.id} onClick={() => setCompany(item.unit)} style={{cursor:'pointer'}}>
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
                       <p>Produzido: <strong>{item.done} / {item.target}</strong></p>
                       <p>Meta atingida: <strong>{item.percent}%</strong></p>
