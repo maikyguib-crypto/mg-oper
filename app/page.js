@@ -2421,6 +2421,9 @@ const dayDone =
                       <h3>{item.unit.name.replace('Miligrama - ', '')}</h3>
                       <p>Produzido: <strong>{item.done} / {item.target}</strong></p>
                       <p>Meta atingida: <strong>{item.percent}%</strong></p>
+                      <div style={{height:'8px',background:'#1f2937',borderRadius:'8px',overflow:'hidden',margin:'8px 0'}}>
+                        <div style={{height:'100%',width:`${item.percent}%`,background:'#22c55e'}} />
+                      </div>
                       <small>Produzindo agora: <strong>{item.active}</strong></small>
                     </div>
                   ))}
