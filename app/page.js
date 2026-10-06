@@ -3613,6 +3613,7 @@ const done =
               🟢{' '}
               {sessions.length}{' '}
               produzindo agora
+            </span>
           )}
 
           {late && (
