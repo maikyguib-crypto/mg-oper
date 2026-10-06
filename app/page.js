@@ -3792,7 +3792,7 @@ const done =
                     }}
                   >
                     {task.status !==
-                      'completed' && (canManage || person.id === linkedMemberId) && (
+                      'completed' && (canManage || !linkedMemberId || person.id === linkedMemberId) && (
                       <>
                         <button
                           className="secondary"
