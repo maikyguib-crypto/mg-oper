@@ -2366,7 +2366,7 @@ const dayDone =
         </nav>
 
         <div>
-          {companyOptions.length > 1 && accessRole === 'owner' && (
+          {companyOptions.length > 1 && ['owner', 'admin'].includes(accessRole) && (
             <select value={company.id} onChange={e => e.target.value === 'all' ? loadAllUnits() : loadAll(e.target.value)} aria-label="Selecionar unidade">
               <option value="all">Todas as unidades</option>
               {companyOptions.map(unit => <option key={unit.id} value={unit.id}>{unit.name.replace('Miligrama - ', '')}</option>)}
