@@ -2020,9 +2020,7 @@ export default function Home() {
     accessRole === 'operator' ? producingMemberIds.filter(id => id === linkedMemberId).length : producingMemberIds.length
 
   const canManage = accessRole === 'owner' || accessRole === 'admin'
-  const visibleTasks = canManage ? dateTasks : dateTasks.filter(t =>
-    linkedMemberId && membersForTask(t.id).some(m => m.id === linkedMemberId)
-  )
+const visibleTasks = dateTasks
   const completedCount = visibleTasks.filter(t => t.status === 'completed').length
   const activeTaskCount = tasks.filter(t => activeSessionsForTask(t.id).length > 0 && (canManage || membersForTask(t.id).some(m => m.id === linkedMemberId))).length
   function taskDone(task) {
@@ -2958,7 +2956,7 @@ const dayDone =
                 <p>
                   Ninguém está
                   produzindo neste
-                  momento.
+                  momento
                 </p>
               </section>
             )}
@@ -3183,6 +3181,9 @@ const dayDone =
 
               <Card
                 n={`${dayPercent}%`}
+<p style={{ marginTop: 6 }}>
+  Falta produzir: <strong>{Math.max(0, dayTarget - dayDone)}</strong>
+</p>
                 t="Meta do dia"
               />
 
@@ -3614,7 +3615,7 @@ const done =
               🟢{' '}
               {sessions.length}{' '}
               produzindo agora
-            </span>
+            <span style={{ padding: '4px 8px', borderRadius: 999, border: '1px solid #22c55e' }}>
           )}
 
           {late && (
@@ -3668,6 +3669,13 @@ const done =
           >
             <strong>
               TOTAL DA EQUIPE
+<strong>
+  {done} /{' '}
+  {target || '—'}{' '}
+  {target
+    ? `— ${percent}%`
+    : ''}
+</strong>
             </strong>
 
             <strong>
@@ -3768,6 +3776,11 @@ const done =
                           individual
                         }
                       </strong>
+{target > 0 && (
+  <span style={{ opacity: .75 }}>
+    {' '}· Equipe: {percent}%
+  </span>
+)}
                     </div>
                   </div>
 
