@@ -1086,7 +1086,7 @@ export default function Home() {
     member,
     amount
   ) {
-    if (!['owner', 'admin'].includes(accessRole) && member.id !== linkedMemberId) return
+    if (!['owner', 'admin', 'operator'].includes(accessRole)) return
     setMsg('')
 
     const currentTotal =
