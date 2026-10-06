@@ -3181,9 +3181,7 @@ const dayDone =
 
               <Card
                 n={`${dayPercent}%`}
-<p style={{ marginTop: 6 }}>
-  Falta produzir: <strong>{Math.max(0, dayTarget - dayDone)}</strong>
-</p>
+
                 t="Meta do dia"
               />
 
