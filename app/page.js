@@ -3613,7 +3613,6 @@ const done =
               🟢{' '}
               {sessions.length}{' '}
               produzindo agora
-            <span style={{ padding: '4px 8px', borderRadius: 999, border: '1px solid #22c55e' }}>
           )}
 
           {late && (
