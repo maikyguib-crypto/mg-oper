@@ -218,18 +218,35 @@ export default function Home() {
         .select('company_id, role, member_id, companies(*)')
         .eq('auth_user_id', uid)
         .eq('active', true)
-        .limit(1)
 
       if (accessError && !String(accessError.message || '').includes('company_users')) {
         setMsg(accessError.message)
       }
+const access = accessRows?.[0]
 
-      const access = accessRows?.[0]
-      if (access?.companies) {
-        c = access.companies
-        role = access.role || 'operator'
-        memberId = access.member_id || null
-      }
+if (access?.companies) {
+  role = access.role || 'operator'
+  memberId = access.member_id || null
+
+  if (role === 'admin') {
+    const { data: adminUnits } = await db
+      .from('companies')
+      .select('*')
+      .in('name', ['Miligrama - Curitiba', 'Miligrama - Fortaleza'])
+      .order('name')
+
+    const units = adminUnits || []
+
+    setCompanyOptions(units)
+
+    c = selectedCompanyId
+      ? units.find(item => item.id === selectedCompanyId) || access.companies
+      : units.find(item => item.name === 'Miligrama - Curitiba') || access.companies
+  } else {
+    c = access.companies
+    setCompanyOptions([access.companies])
+  }
+}
     }
 
     if (!c) {
