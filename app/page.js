@@ -3,65 +3,158 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 function CalculadoraCapsulas() {
-  const [potes, setPotes] = useState('')
-  const [capsulasPorPote, setCapsulasPorPote] = useState(90)
+  const produtos = [
+    { nome: 'Biotina', opcoes: [90, 180] },
+    { nome: 'Finasterida', opcoes: [90, 180] },
+    { nome: 'Minoxidil + Finasterida', opcoes: [90, 180] },
+    { nome: 'Minoxidil + Dutasterida', opcoes: [90, 180] },
+    { nome: 'Dutasterida', opcoes: [90, 180] },
+    { nome: 'Minoxidil', opcoes: [90, 180] },
+    { nome: 'Saw Palmetto', opcoes: [180, 360] }
+  ]
 
-  const quantidadePotes = Number(potes) || 0
-  const totalCapsulas = quantidadePotes * capsulasPorPote
-  const tabuleirosCompletos = Math.floor(totalCapsulas / 360)
-  const sobraCapsulas = totalCapsulas % 360
-  const tabuleirosNecessarios = Math.ceil(totalCapsulas / 360)
+  const [quantidades, setQuantidades] = useState({})
+
+  function alterarQuantidade(produto, capsulas, valor) {
+    setQuantidades(prev => ({
+      ...prev,
+      [`${produto}-${capsulas}`]: valor
+    }))
+  }
+
+  const resultados = produtos.map(produto => {
+    let totalCapsulas = 0
+
+    produto.opcoes.forEach(capsulas => {
+      const potes =
+        Number(quantidades[`${produto.nome}-${capsulas}`]) || 0
+
+      totalCapsulas += potes * capsulas
+    })
+
+    return {
+      nome: produto.nome,
+      totalCapsulas,
+      tabuleirosCompletos: Math.floor(totalCapsulas / 360),
+      sobra: totalCapsulas % 360,
+      tabuleirosNecessarios: Math.ceil(totalCapsulas / 360)
+    }
+  })
+
+  const totalCapsulasGeral = resultados.reduce(
+    (soma, item) => soma + item.totalCapsulas,
+    0
+  )
+
+  const totalTabuleirosGeral = resultados.reduce(
+    (soma, item) => soma + item.tabuleirosNecessarios,
+    0
+  )
 
   return (
     <section className="panel">
       <h2>🧮 Calculadora de cápsulas</h2>
 
       <p>
-        Calcule a quantidade de cápsulas e de tabuleiros necessários.
+        Informe a quantidade de potes de cada produto.
+        Cada tabuleiro comporta 360 cápsulas.
       </p>
 
-      <label>Quantidade de potes</label>
+      {produtos.map(produto => (
+        <div
+          key={produto.nome}
+          style={{
+            marginTop: 20,
+            padding: 16,
+            border: '1px solid #374151',
+            borderRadius: 10
+          }}
+        >
+          <h3>{produto.nome}</h3>
 
-      <input
-        type="number"
-        min="0"
-        placeholder="Ex.: 100"
-        value={potes}
-        onChange={e => setPotes(e.target.value)}
-      />
+          {produto.opcoes.map(capsulas => (
+            <div key={capsulas} style={{ marginTop: 10 }}>
+              <label>
+                Potes de {capsulas} cápsulas
+              </label>
 
-      <label>Cápsulas por pote</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={
+                  quantidades[
+                    `${produto.nome}-${capsulas}`
+                  ] || ''
+                }
+                onChange={e =>
+                  alterarQuantidade(
+                    produto.nome,
+                    capsulas,
+                    e.target.value
+                  )
+                }
+              />
+            </div>
+          ))}
 
-      <select
-        value={capsulasPorPote}
-        onChange={e => setCapsulasPorPote(Number(e.target.value))}
+          {resultados
+            .filter(r => r.nome === produto.nome)
+            .map(resultado => (
+              <div key={resultado.nome} style={{ marginTop: 15 }}>
+                <strong>
+                  {resultado.totalCapsulas.toLocaleString('pt-BR')} cápsulas
+                </strong>
+
+                <p>
+                  Tabuleiros completos: {resultado.tabuleirosCompletos}
+                </p>
+
+                <p>
+                  Sobra: {resultado.sobra} cápsulas
+                </p>
+
+                <p>
+                  Tabuleiros necessários: {resultado.tabuleirosNecessarios}
+                </p>
+              </div>
+            ))}
+        </div>
+      ))}
+
+      <div
+        style={{
+          marginTop: 25,
+          padding: 20,
+          border: '2px solid #22c55e',
+          borderRadius: 12
+        }}
       >
-        <option value={90}>90 cápsulas</option>
-        <option value={180}>180 cápsulas</option>
-      </select>
+        <h2>RESUMO GERAL</h2>
 
-      <div style={{ marginTop: 20 }}>
-        <h3>Resultado</h3>
+        {resultados
+          .filter(item => item.totalCapsulas > 0)
+          .map(item => (
+            <p key={item.nome}>
+              <strong>{item.nome}:</strong>{' '}
+              {item.totalCapsulas.toLocaleString('pt-BR')} cápsulas
+              {' → '}
+              {item.tabuleirosNecessarios} tabuleiro(s)
+              {item.sobra > 0
+                ? ` — sobra ${item.sobra}`
+                : ''}
+            </p>
+          ))}
 
-        <p>
-          <strong>Total de cápsulas:</strong>{' '}
-          {totalCapsulas.toLocaleString('pt-BR')}
-        </p>
+        <hr />
 
-        <p>
-          <strong>Tabuleiros completos de 360:</strong>{' '}
-          {tabuleirosCompletos}
-        </p>
+        <h3>
+          Total de cápsulas: {totalCapsulasGeral.toLocaleString('pt-BR')}
+        </h3>
 
-        <p>
-          <strong>Sobra de cápsulas:</strong>{' '}
-          {sobraCapsulas}
-        </p>
-
-        <p>
-          <strong>Total de tabuleiros necessários:</strong>{' '}
-          {tabuleirosNecessarios}
-        </p>
+        <h3>
+          Total de tabuleiros: {totalTabuleirosGeral}
+        </h3>
       </div>
     </section>
   )
