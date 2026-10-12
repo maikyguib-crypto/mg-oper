@@ -2,7 +2,70 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+function CalculadoraCapsulas() {
+  const [potes, setPotes] = useState('')
+  const [capsulasPorPote, setCapsulasPorPote] = useState(90)
 
+  const quantidadePotes = Number(potes) || 0
+  const totalCapsulas = quantidadePotes * capsulasPorPote
+  const tabuleirosCompletos = Math.floor(totalCapsulas / 360)
+  const sobraCapsulas = totalCapsulas % 360
+  const tabuleirosNecessarios = Math.ceil(totalCapsulas / 360)
+
+  return (
+    <section className="panel">
+      <h2>🧮 Calculadora de cápsulas</h2>
+
+      <p>
+        Calcule a quantidade de cápsulas e de tabuleiros necessários.
+      </p>
+
+      <label>Quantidade de potes</label>
+
+      <input
+        type="number"
+        min="0"
+        placeholder="Ex.: 100"
+        value={potes}
+        onChange={e => setPotes(e.target.value)}
+      />
+
+      <label>Cápsulas por pote</label>
+
+      <select
+        value={capsulasPorPote}
+        onChange={e => setCapsulasPorPote(Number(e.target.value))}
+      >
+        <option value={90}>90 cápsulas</option>
+        <option value={180}>180 cápsulas</option>
+      </select>
+
+      <div style={{ marginTop: 20 }}>
+        <h3>Resultado</h3>
+
+        <p>
+          <strong>Total de cápsulas:</strong>{' '}
+          {totalCapsulas.toLocaleString('pt-BR')}
+        </p>
+
+        <p>
+          <strong>Tabuleiros completos de 360:</strong>{' '}
+          {tabuleirosCompletos}
+        </p>
+
+        <p>
+          <strong>Sobra de cápsulas:</strong>{' '}
+          {sobraCapsulas}
+        </p>
+
+        <p>
+          <strong>Total de tabuleiros necessários:</strong>{' '}
+          {tabuleirosNecessarios}
+        </p>
+      </div>
+    </section>
+  )
+}
 const db = supabase()
 
 function localDate() {
@@ -2378,6 +2441,9 @@ const dayDone =
             <>
           <button onClick={() => setTab('equipe')}>Equipe</button>
           <button onClick={() => setTab('setores')}>Setores</button>
+            <button onClick={() => setTab('calculadora')}>
+  Calculadora
+</button>
             </>
           )}
         </nav>
@@ -3525,7 +3591,23 @@ const dayDone =
             </section>
           </div>
         )}
+{tab === 'calculadora' && (
+  <>
+    <p className="eyebrow">
+      CALCULADORA
+    </p>
 
+    <h1>
+      Calculadora de cápsulas
+    </h1>
+
+    <p>
+      Calcule os tabuleiros necessários para a produção.
+    </p>
+
+    <CalculadoraCapsulas />
+  </>
+)}
         {msg && (
           <p
             className="message"
