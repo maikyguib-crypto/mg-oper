@@ -111,10 +111,6 @@ function CalculadoraCapsulas() {
                 </p>
 
                 <p>
-                  Sobra: {resultado.sobra} cápsulas
-                </p>
-
-                <p>
                   Tabuleiros necessários: {resultado.tabuleirosNecessarios}
                 </p>
               </div>
@@ -140,9 +136,7 @@ function CalculadoraCapsulas() {
               {item.totalCapsulas.toLocaleString('pt-BR')} cápsulas
               {' → '}
               {item.tabuleirosNecessarios} tabuleiro(s)
-              {item.sobra > 0
-                ? ` — sobra ${item.sobra}`
-                : ''}
+
             </p>
           ))}
 
