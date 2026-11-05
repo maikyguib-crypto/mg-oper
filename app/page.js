@@ -233,7 +233,7 @@ export default function Home() {
     }
 
     if (!taskMember) {
-      alert('Escolha o funcionário responsável.')
+      alert('Escolha o funcionÃ¡rio responsÃ¡vel.')
       return
     }
 
@@ -300,14 +300,14 @@ export default function Home() {
 
   function printEmployeeDay() {
     if (!printMember) {
-      alert('Escolha o funcionário que deseja imprimir.')
+      alert('Escolha o funcionÃ¡rio que deseja imprimir.')
       return
     }
 
     const member = members.find(m => m.id === printMember)
 
     if (!member) {
-      alert('Funcionário não encontrado.')
+      alert('FuncionÃ¡rio nÃ£o encontrado.')
       return
     }
 
@@ -324,7 +324,7 @@ export default function Home() {
 
     if (!list.length) {
       alert(
-        `${member.name} não possui programação para ${formatDate(printDate)}.`
+        `${member.name} nÃ£o possui programaÃ§Ã£o para ${formatDate(printDate)}.`
       )
       return
     }
@@ -345,7 +345,7 @@ export default function Home() {
         const quantidade =
           task.quantity_target ||
           task.goal ||
-          '—'
+          'â€”'
 
         return `
           <div class="produto">
@@ -374,7 +374,7 @@ export default function Home() {
               </div>
 
               <div class="concluido">
-                ☐ CONCLUÍDO
+                â˜ CONCLUÃDO
               </div>
             </div>
           </div>
@@ -386,7 +386,7 @@ export default function Home() {
 
     if (!w) {
       alert(
-        'O navegador bloqueou a impressão. Permita pop-ups para o MG Oper.'
+        'O navegador bloqueou a impressÃ£o. Permita pop-ups para o MG Oper.'
       )
       return
     }
@@ -399,7 +399,7 @@ export default function Home() {
           <meta charset="utf-8">
 
           <title>
-            Programação - ${safe(member.name)}
+            ProgramaÃ§Ã£o - ${safe(member.name)}
           </title>
 
           <style>
@@ -525,12 +525,12 @@ export default function Home() {
             </div>
 
             <div class="titulo">
-              PROGRAMAÇÃO DO DIA
+              PROGRAMAÃ‡ÃƒO DO DIA
             </div>
           </div>
 
           <div class="info">
-            <strong>Funcionário:</strong>
+            <strong>FuncionÃ¡rio:</strong>
             ${safe(member.name)}
 
             <br>
@@ -552,7 +552,7 @@ export default function Home() {
           </div>
 
           <div class="rodape">
-            MG Oper — Programação operacional
+            MG Oper â€” ProgramaÃ§Ã£o operacional
           </div>
 
           <script>
@@ -588,7 +588,7 @@ export default function Home() {
   function statusName(status) {
     if (status === 'pending') return 'Pendente'
     if (status === 'in_progress') return 'Em andamento'
-    return 'Concluída'
+    return 'ConcluÃ­da'
   }
 
   function priorityName(priority) {
@@ -668,7 +668,7 @@ export default function Home() {
           </h1>
 
           <p>
-            Esse será seu espaço de trabalho.
+            Esse serÃ¡ seu espaÃ§o de trabalho.
           </p>
 
           <input
@@ -678,7 +678,7 @@ export default function Home() {
           />
 
           <button onClick={createCompany}>
-            Começar a usar
+            ComeÃ§ar a usar
           </button>
 
           {msg && <small>{msg}</small>}
@@ -700,8 +700,10 @@ export default function Home() {
           </button>
 
           <button onClick={() => setTab('programacao')}>
-            Programação
+            ProgramaÃ§Ã£o
           </button>
+
+          <button onClick={() => setTab('producao')}>ProduÃ§Ã£o</button>
 
           <button onClick={() => setTab('equipe')}>
             Equipe
@@ -725,18 +727,19 @@ export default function Home() {
       </header>
 
       <main className="page">
+        {tab === 'producao' && <ProductionReport key={company.id} company={company} members={members} />}
         {tab === 'dashboard' && (
           <>
             <p className="eyebrow">
-              VISÃO GERAL
+              VISÃƒO GERAL
             </p>
 
             <h1>
-              Olá! O que precisa ser feito hoje?
+              OlÃ¡! O que precisa ser feito hoje?
             </h1>
 
             <p>
-              Acompanhe a operação da empresa em um só lugar.
+              Acompanhe a operaÃ§Ã£o da empresa em um sÃ³ lugar.
             </p>
 
             <div className="stats">
@@ -752,7 +755,7 @@ export default function Home() {
 
               <Card
                 n={stats.completed}
-                t="Concluídas"
+                t="ConcluÃ­das"
               />
 
               <Card
@@ -763,7 +766,7 @@ export default function Home() {
 
             <section className="panel">
               <h2>
-                Programação
+                ProgramaÃ§Ã£o
               </h2>
 
               {tasks.length === 0 && (
@@ -781,12 +784,12 @@ export default function Home() {
                     <b>{t.title}</b>
 
                     <p>
-                      {t.assignee || 'Sem responsável'}
-                      {' · '}
+                      {t.assignee || 'Sem responsÃ¡vel'}
+                      {' Â· '}
                       {sectorNameById(t.sector_id)}
 
                       {(t.quantity_target || t.goal)
-                        ? ` · Quantidade: ${t.quantity_target || t.goal}`
+                        ? ` Â· Quantidade: ${t.quantity_target || t.goal}`
                         : ''}
                     </p>
                   </div>
@@ -805,15 +808,15 @@ export default function Home() {
         {tab === 'programacao' && (
           <>
             <p className="eyebrow">
-              PROGRAMAÇÃO
+              PROGRAMAÃ‡ÃƒO
             </p>
 
             <h1>
-              Programação do dia
+              ProgramaÃ§Ã£o do dia
             </h1>
 
             <p>
-              Distribua produtos, responsáveis e quantidades.
+              Distribua produtos, responsÃ¡veis e quantidades.
             </p>
 
             <section
@@ -821,15 +824,15 @@ export default function Home() {
               style={{ marginBottom: 20 }}
             >
               <h2>
-                🖨 Imprimir programação do dia
+                ðŸ–¨ Imprimir programaÃ§Ã£o do dia
               </h2>
 
               <p>
-                Escolha o funcionário e a data.
+                Escolha o funcionÃ¡rio e a data.
               </p>
 
               <label>
-                Funcionário
+                FuncionÃ¡rio
               </label>
 
               <select
@@ -837,7 +840,7 @@ export default function Home() {
                 onChange={e => setPrintMember(e.target.value)}
               >
                 <option value="">
-                  Selecione o funcionário
+                  Selecione o funcionÃ¡rio
                 </option>
 
                 {members.map(m => (
@@ -851,7 +854,7 @@ export default function Home() {
               </select>
 
               <label>
-                Data da programação
+                Data da programaÃ§Ã£o
               </label>
 
               <input
@@ -869,7 +872,7 @@ export default function Home() {
                   padding: 14
                 }}
               >
-                🖨 IMPRIMIR PROGRAMAÇÃO
+                ðŸ–¨ IMPRIMIR PROGRAMAÃ‡ÃƒO
               </button>
             </section>
 
@@ -900,7 +903,7 @@ export default function Home() {
                   onChange={e => setTaskMember(e.target.value)}
                 >
                   <option value="">
-                    Responsável
+                    ResponsÃ¡vel
                   </option>
 
                   {members.map(m => (
@@ -982,18 +985,18 @@ export default function Home() {
                       </b>
 
                       <p>
-                        {t.assignee || 'Sem responsável'}
-                        {' · '}
+                        {t.assignee || 'Sem responsÃ¡vel'}
+                        {' Â· '}
                         {sectorNameById(t.sector_id)}
 
                         {(t.quantity_target || t.goal)
-                          ? ` · Quantidade: ${t.quantity_target || t.goal}`
+                          ? ` Â· Quantidade: ${t.quantity_target || t.goal}`
                           : ''}
                       </p>
 
                       <small>
                         Data: {formatDate(t.schedule_date)}
-                        {' · '}
+                        {' Â· '}
                         Prioridade: {priorityName(t.priority)}
                       </small>
                     </div>
@@ -1017,7 +1020,7 @@ export default function Home() {
             </p>
 
             <h1>
-              Funcionários
+              FuncionÃ¡rios
             </h1>
 
             <p>
@@ -1027,11 +1030,11 @@ export default function Home() {
             <div className="two">
               <section className="panel">
                 <h2>
-                  Adicionar funcionário
+                  Adicionar funcionÃ¡rio
                 </h2>
 
                 <input
-                  placeholder="Nome do funcionário"
+                  placeholder="Nome do funcionÃ¡rio"
                   value={memberName}
                   onChange={e => setMemberName(e.target.value)}
                 />
@@ -1066,7 +1069,7 @@ export default function Home() {
 
                 {members.length === 0 && (
                   <p>
-                    Nenhum funcionário cadastrado.
+                    Nenhum funcionÃ¡rio cadastrado.
                   </p>
                 )}
 
@@ -1100,7 +1103,7 @@ export default function Home() {
             </h1>
 
             <p>
-              Cada empresa pode montar sua própria operação.
+              Cada empresa pode montar sua prÃ³pria operaÃ§Ã£o.
             </p>
 
             <div className="two">
@@ -1110,7 +1113,7 @@ export default function Home() {
                 </h2>
 
                 <input
-                  placeholder="Ex.: Produção, Vendas, Expedição..."
+                  placeholder="Ex.: ProduÃ§Ã£o, Vendas, ExpediÃ§Ã£o..."
                   value={sectorName}
                   onChange={e => setSectorName(e.target.value)}
                 />
@@ -1166,7 +1169,7 @@ function Card({ n, t }) {
 }
 
 function formatDate(value) {
-  if (!value) return '—'
+  if (!value) return 'â€”'
 
   const parts = value
     .slice(0, 10)
@@ -1186,4 +1189,108 @@ function safe(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
+}
+
+
+function ProductionReport({ company, members }) {
+  const [month, setMonth] = useState(localDate().slice(0, 7))
+  const [rows, setRows] = useState([])
+  const [person, setPerson] = useState('')
+  const [day, setDay] = useState(localDate())
+  const [quantity, setQuantity] = useState('')
+  const [filter, setFilter] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [ready, setReady] = useState(false)
+  const [refresh, setRefresh] = useState(0)
+  const [year, mon] = month.split('-').map(Number)
+  const days = Array.from({ length: new Date(year, mon, 0).getDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`)
+  const weeks = []
+  for (const date of days) {
+    if (!weeks.length || new Date(`${date}T12:00:00`).getDay() === 1) weeks.push([])
+    weeks[weeks.length - 1].push(date)
+  }
+  useEffect(() => {
+    let active = true
+    setReady(false); setRows([]); setError('')
+    async function read() {
+      const all = []
+      for (let offset = 0; ; offset += 500) {
+        const result = await db.from('mg_daily_production').select('*').eq('company_id', company.id)
+          .gte('production_date', days[0]).lte('production_date', days[days.length - 1])
+          .order('id').range(offset, offset + 499)
+        if (!active) return
+        if (result.error) { setError('NÃ£o foi possÃ­vel carregar a produÃ§Ã£o: ' + result.error.message); return }
+        all.push(...result.data)
+        if (result.data.length < 500) break
+      }
+      if (active) { setRows(all); setReady(true) }
+    }
+    read().catch(e => { if (active) setError(e.message) })
+    return () => { active = false }
+  }, [company.id, month, refresh])
+  const values = new Map(rows.map(row => [`${row.member_id}:${row.production_date}`, Number(row.quantity)]))
+  const total = (id, dates) => dates.reduce((sum, date) => sum + (values.get(`${id}:${date}`) || 0), 0)
+  const fmt = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+  const people = members.filter(m => !filter || m.id === filter)
+  async function save(event) {
+    event.preventDefault()
+    const amount = Number(quantity)
+    if (!person || !day || quantity === '' || !Number.isSafeInteger(amount) || amount < 0) return
+    const existing = await db.from('mg_daily_production').select('quantity').eq('company_id', company.id).eq('member_id', person).eq('production_date', day).maybeSingle()
+    if (existing.error) { setError(existing.error.message); return }
+    if (existing.data && !window.confirm(`JÃ¡ existe total de ${existing.data.quantity} fÃ³rmulas nesse dia. Substituir por ${amount}?`)) return
+    setBusy(true); setError('')
+    try {
+      const result = await db.from('mg_daily_production').upsert({ company_id: company.id, member_id: person, production_date: day, quantity: amount }, { onConflict: 'company_id,member_id,production_date' })
+      if (result.error) throw result.error
+      setQuantity(''); setMonth(day.slice(0, 7)); setRefresh(n => n + 1)
+    } catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
+  const average = id => {
+    const count = days.filter(date => values.has(`${id}:${date}`)).length
+    return count ? total(id, days) / count : 0
+  }
+  function exportCSV() {
+    const quote = value => '"' + String(value).replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""') + '"'
+    const data = [
+      ['FuncionÃ¡rio', ...days.map(formatDate), ...weeks.map((w, i) => `Semana ${i + 1} (${formatDate(w[0])} a ${formatDate(w[w.length - 1])})`), 'Total do mÃªs', 'MÃ©dia por dia com lanÃ§amento'],
+      ...people.map(m => [m.name, ...days.map(date => values.has(`${m.id}:${date}`) ? values.get(`${m.id}:${date}`) : ''), ...weeks.map(w => total(m.id, w)), total(m.id, days), average(m.id).toFixed(2).replace('.', ',')])
+    ]
+    const blob = new Blob(['\uFEFF' + data.map(row => row.map(quote).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `producao-${month}${filter ? '-individual' : '-equipe'}.csv`; a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  const cell = { padding: 10, borderBottom: '1px solid #ddd', textAlign: 'right' }
+  return <>
+    <h1>CalendÃ¡rio de produÃ§Ã£o</h1>
+    <section className="panel">
+      <h2>LanÃ§ar total produzido no dia</h2>
+      <p>Informe o total real de fÃ³rmulas da pessoa nessa data. Um novo lanÃ§amento substitui o total anterior, sem somar novamente.</p>
+      <form onSubmit={save}>
+        <label>FuncionÃ¡rio<select required value={person} onChange={e => setPerson(e.target.value)}><option value="">Selecione</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+        <label>Data<input required type="date" value={day} onChange={e => setDay(e.target.value)} /></label>
+        <label>Total de fÃ³rmulas<input required type="number" min="0" step="1" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>
+        <button disabled={busy}>{busy ? 'Salvandoâ€¦' : 'Salvar total do dia'}</button>
+      </form>
+    </section>
+    <section className="panel" style={{ marginTop: 20 }}>
+      <label>MÃªs<input type="month" value={month} onChange={e => { if(e.target.value) setMonth(e.target.value) }} /></label>
+      <label>Exibir<select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Toda a equipe</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+      <button disabled={!ready} onClick={exportCSV}>Baixar CSV para Excel</button>{' '}
+      <button onClick={() => setRefresh(n => n + 1)}>Atualizar</button>
+      <p>Semanas de segunda a domingo, limitadas ao mÃªs escolhido. â€œâ€”â€ significa sem lanÃ§amento; zero Ã© um total registrado. A mÃ©dia considera os dias com lanÃ§amento, inclusive zero.</p>
+      {error && <p role="alert">{error}</p>}
+      {!ready ? <p>{error ? 'RelatÃ³rio indisponÃ­vel. Os totais nÃ£o foram calculados.' : 'Carregando produÃ§Ã£oâ€¦'}</p> : <div role="region" aria-label="CalendÃ¡rio de produÃ§Ã£o" tabIndex={0} style={{ overflowX: 'auto', maxHeight: '65vh' }}>
+        <table style={{ borderCollapse: 'collapse', whiteSpace: 'nowrap', width: '100%' }}>
+          <caption>ProduÃ§Ã£o real â€” {month}</caption>
+          <thead><tr><th scope="col">FuncionÃ¡rio</th>{days.map(d => <th style={cell} scope="col" key={d}>{d.slice(8)}</th>)}{weeks.map((w,i) => <th style={cell} key={i} scope="col">Semana {i+1} ({w[0].slice(8)}â€“{w[w.length-1].slice(8)})</th>)}<th style={cell} scope="col">Total mÃªs</th><th style={cell} scope="col">MÃ©dia/dia</th></tr></thead>
+          <tbody>{people.map(m => <tr key={m.id}><th scope="row" style={{ ...cell, position: 'sticky', left: 0, background: '#fff', color: '#111', textAlign: 'left' }}>{m.name}</th>{days.map(d => <td key={d} style={cell}>{values.has(`${m.id}:${d}`) ? fmt(values.get(`${m.id}:${d}`)) : 'â€”'}</td>)}{weeks.map((w,i) => <td key={i} style={cell}>{fmt(total(m.id,w))}</td>)}<td style={cell}><strong>{fmt(total(m.id,days))}</strong></td><td style={cell}>{fmt(average(m.id))}</td></tr>)}</tbody>
+          <tfoot><tr><th scope="row">Total equipe exibida</th>{[...days.map(d => [d]), ...weeks, days].map((dates,i) => <td style={cell} key={i}>{fmt(people.reduce((sum,m) => sum + total(m.id,dates),0))}</td>)}<td /></tr></tfoot>
+        </table>
+        {!people.length && <p>Cadastre os funcionÃ¡rios na aba Equipe.</p>}
+      </div>}
+    </section>
+  </>
 }
