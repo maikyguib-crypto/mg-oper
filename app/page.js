@@ -233,7 +233,7 @@ export default function Home() {
     }
 
     if (!taskMember) {
-      alert('Escolha o funcionÃ¡rio responsÃ¡vel.')
+      alert('Escolha o funcionário responsável.')
       return
     }
 
@@ -300,14 +300,14 @@ export default function Home() {
 
   function printEmployeeDay() {
     if (!printMember) {
-      alert('Escolha o funcionÃ¡rio que deseja imprimir.')
+      alert('Escolha o funcionário que deseja imprimir.')
       return
     }
 
     const member = members.find(m => m.id === printMember)
 
     if (!member) {
-      alert('FuncionÃ¡rio nÃ£o encontrado.')
+      alert('Funcionário não encontrado.')
       return
     }
 
@@ -324,7 +324,7 @@ export default function Home() {
 
     if (!list.length) {
       alert(
-        `${member.name} nÃ£o possui programaÃ§Ã£o para ${formatDate(printDate)}.`
+        `${member.name} não possui programação para ${formatDate(printDate)}.`
       )
       return
     }
@@ -345,7 +345,7 @@ export default function Home() {
         const quantidade =
           task.quantity_target ||
           task.goal ||
-          'â€”'
+          '—'
 
         return `
           <div class="produto">
@@ -374,7 +374,7 @@ export default function Home() {
               </div>
 
               <div class="concluido">
-                â˜ CONCLUÃDO
+                ☐ CONCLUÍDO
               </div>
             </div>
           </div>
@@ -386,7 +386,7 @@ export default function Home() {
 
     if (!w) {
       alert(
-        'O navegador bloqueou a impressÃ£o. Permita pop-ups para o MG Oper.'
+        'O navegador bloqueou a impressão. Permita pop-ups para o MG Oper.'
       )
       return
     }
@@ -399,7 +399,7 @@ export default function Home() {
           <meta charset="utf-8">
 
           <title>
-            ProgramaÃ§Ã£o - ${safe(member.name)}
+            Programação - ${safe(member.name)}
           </title>
 
           <style>
@@ -525,12 +525,12 @@ export default function Home() {
             </div>
 
             <div class="titulo">
-              PROGRAMAÃ‡ÃƒO DO DIA
+              PROGRAMAÇÃO DO DIA
             </div>
           </div>
 
           <div class="info">
-            <strong>FuncionÃ¡rio:</strong>
+            <strong>Funcionário:</strong>
             ${safe(member.name)}
 
             <br>
@@ -552,7 +552,7 @@ export default function Home() {
           </div>
 
           <div class="rodape">
-            MG Oper â€” ProgramaÃ§Ã£o operacional
+            MG Oper — Programação operacional
           </div>
 
           <script>
@@ -588,7 +588,7 @@ export default function Home() {
   function statusName(status) {
     if (status === 'pending') return 'Pendente'
     if (status === 'in_progress') return 'Em andamento'
-    return 'ConcluÃ­da'
+    return 'Concluída'
   }
 
   function priorityName(priority) {
@@ -668,7 +668,7 @@ export default function Home() {
           </h1>
 
           <p>
-            Esse serÃ¡ seu espaÃ§o de trabalho.
+            Esse será seu espaço de trabalho.
           </p>
 
           <input
@@ -678,7 +678,7 @@ export default function Home() {
           />
 
           <button onClick={createCompany}>
-            ComeÃ§ar a usar
+            Começar a usar
           </button>
 
           {msg && <small>{msg}</small>}
@@ -700,10 +700,10 @@ export default function Home() {
           </button>
 
           <button onClick={() => setTab('programacao')}>
-            ProgramaÃ§Ã£o
+            Programação
           </button>
 
-          <button onClick={() => setTab('producao')}>ProduÃ§Ã£o</button>
+          <button onClick={() => setTab('producao')}>Produção</button>
 
           <button onClick={() => setTab('equipe')}>
             Equipe
@@ -731,15 +731,15 @@ export default function Home() {
         {tab === 'dashboard' && (
           <>
             <p className="eyebrow">
-              VISÃƒO GERAL
+              VISÃO GERAL
             </p>
 
             <h1>
-              OlÃ¡! O que precisa ser feito hoje?
+              Olá! O que precisa ser feito hoje?
             </h1>
 
             <p>
-              Acompanhe a operaÃ§Ã£o da empresa em um sÃ³ lugar.
+              Acompanhe a operação da empresa em um só lugar.
             </p>
 
             <div className="stats">
@@ -755,7 +755,7 @@ export default function Home() {
 
               <Card
                 n={stats.completed}
-                t="ConcluÃ­das"
+                t="Concluídas"
               />
 
               <Card
@@ -766,7 +766,7 @@ export default function Home() {
 
             <section className="panel">
               <h2>
-                ProgramaÃ§Ã£o
+                Programação
               </h2>
 
               {tasks.length === 0 && (
@@ -784,12 +784,12 @@ export default function Home() {
                     <b>{t.title}</b>
 
                     <p>
-                      {t.assignee || 'Sem responsÃ¡vel'}
-                      {' Â· '}
+                      {t.assignee || 'Sem responsável'}
+                      {' · '}
                       {sectorNameById(t.sector_id)}
 
                       {(t.quantity_target || t.goal)
-                        ? ` Â· Quantidade: ${t.quantity_target || t.goal}`
+                        ? ` · Quantidade: ${t.quantity_target || t.goal}`
                         : ''}
                     </p>
                   </div>
@@ -808,15 +808,15 @@ export default function Home() {
         {tab === 'programacao' && (
           <>
             <p className="eyebrow">
-              PROGRAMAÃ‡ÃƒO
+              PROGRAMAÇÃO
             </p>
 
             <h1>
-              ProgramaÃ§Ã£o do dia
+              Programação do dia
             </h1>
 
             <p>
-              Distribua produtos, responsÃ¡veis e quantidades.
+              Distribua produtos, responsáveis e quantidades.
             </p>
 
             <section
@@ -824,15 +824,15 @@ export default function Home() {
               style={{ marginBottom: 20 }}
             >
               <h2>
-                ðŸ–¨ Imprimir programaÃ§Ã£o do dia
+                🖨 Imprimir programação do dia
               </h2>
 
               <p>
-                Escolha o funcionÃ¡rio e a data.
+                Escolha o funcionário e a data.
               </p>
 
               <label>
-                FuncionÃ¡rio
+                Funcionário
               </label>
 
               <select
@@ -840,7 +840,7 @@ export default function Home() {
                 onChange={e => setPrintMember(e.target.value)}
               >
                 <option value="">
-                  Selecione o funcionÃ¡rio
+                  Selecione o funcionário
                 </option>
 
                 {members.map(m => (
@@ -854,7 +854,7 @@ export default function Home() {
               </select>
 
               <label>
-                Data da programaÃ§Ã£o
+                Data da programação
               </label>
 
               <input
@@ -872,7 +872,7 @@ export default function Home() {
                   padding: 14
                 }}
               >
-                ðŸ–¨ IMPRIMIR PROGRAMAÃ‡ÃƒO
+                🖨 IMPRIMIR PROGRAMAÇÃO
               </button>
             </section>
 
@@ -903,7 +903,7 @@ export default function Home() {
                   onChange={e => setTaskMember(e.target.value)}
                 >
                   <option value="">
-                    ResponsÃ¡vel
+                    Responsável
                   </option>
 
                   {members.map(m => (
@@ -985,18 +985,18 @@ export default function Home() {
                       </b>
 
                       <p>
-                        {t.assignee || 'Sem responsÃ¡vel'}
-                        {' Â· '}
+                        {t.assignee || 'Sem responsável'}
+                        {' · '}
                         {sectorNameById(t.sector_id)}
 
                         {(t.quantity_target || t.goal)
-                          ? ` Â· Quantidade: ${t.quantity_target || t.goal}`
+                          ? ` · Quantidade: ${t.quantity_target || t.goal}`
                           : ''}
                       </p>
 
                       <small>
                         Data: {formatDate(t.schedule_date)}
-                        {' Â· '}
+                        {' · '}
                         Prioridade: {priorityName(t.priority)}
                       </small>
                     </div>
@@ -1020,7 +1020,7 @@ export default function Home() {
             </p>
 
             <h1>
-              FuncionÃ¡rios
+              Funcionários
             </h1>
 
             <p>
@@ -1030,11 +1030,11 @@ export default function Home() {
             <div className="two">
               <section className="panel">
                 <h2>
-                  Adicionar funcionÃ¡rio
+                  Adicionar funcionário
                 </h2>
 
                 <input
-                  placeholder="Nome do funcionÃ¡rio"
+                  placeholder="Nome do funcionário"
                   value={memberName}
                   onChange={e => setMemberName(e.target.value)}
                 />
@@ -1069,7 +1069,7 @@ export default function Home() {
 
                 {members.length === 0 && (
                   <p>
-                    Nenhum funcionÃ¡rio cadastrado.
+                    Nenhum funcionário cadastrado.
                   </p>
                 )}
 
@@ -1103,7 +1103,7 @@ export default function Home() {
             </h1>
 
             <p>
-              Cada empresa pode montar sua prÃ³pria operaÃ§Ã£o.
+              Cada empresa pode montar sua própria operação.
             </p>
 
             <div className="two">
@@ -1113,7 +1113,7 @@ export default function Home() {
                 </h2>
 
                 <input
-                  placeholder="Ex.: ProduÃ§Ã£o, Vendas, ExpediÃ§Ã£o..."
+                  placeholder="Ex.: Produção, Vendas, Expedição..."
                   value={sectorName}
                   onChange={e => setSectorName(e.target.value)}
                 />
@@ -1169,7 +1169,7 @@ function Card({ n, t }) {
 }
 
 function formatDate(value) {
-  if (!value) return 'â€”'
+  if (!value) return '—'
 
   const parts = value
     .slice(0, 10)
@@ -1220,7 +1220,7 @@ function ProductionReport({ company, members }) {
           .gte('production_date', days[0]).lte('production_date', days[days.length - 1])
           .order('id').range(offset, offset + 499)
         if (!active) return
-        if (result.error) { setError('NÃ£o foi possÃ­vel carregar a produÃ§Ã£o: ' + result.error.message); return }
+        if (result.error) { setError('Não foi possível carregar a produção: ' + result.error.message); return }
         all.push(...result.data)
         if (result.data.length < 500) break
       }
@@ -1239,7 +1239,7 @@ function ProductionReport({ company, members }) {
     if (!person || !day || quantity === '' || !Number.isSafeInteger(amount) || amount < 0) return
     const existing = await db.from('mg_daily_production').select('quantity').eq('company_id', company.id).eq('member_id', person).eq('production_date', day).maybeSingle()
     if (existing.error) { setError(existing.error.message); return }
-    if (existing.data && !window.confirm(`JÃ¡ existe total de ${existing.data.quantity} fÃ³rmulas nesse dia. Substituir por ${amount}?`)) return
+    if (existing.data && !window.confirm(`Já existe total de ${existing.data.quantity} fórmulas nesse dia. Substituir por ${amount}?`)) return
     setBusy(true); setError('')
     try {
       const result = await db.from('mg_daily_production').upsert({ company_id: company.id, member_id: person, production_date: day, quantity: amount }, { onConflict: 'company_id,member_id,production_date' })
@@ -1254,7 +1254,7 @@ function ProductionReport({ company, members }) {
   function exportCSV() {
     const quote = value => '"' + String(value).replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""') + '"'
     const data = [
-      ['FuncionÃ¡rio', ...days.map(formatDate), ...weeks.map((w, i) => `Semana ${i + 1} (${formatDate(w[0])} a ${formatDate(w[w.length - 1])})`), 'Total do mÃªs', 'MÃ©dia por dia com lanÃ§amento'],
+      ['Funcionário', ...days.map(formatDate), ...weeks.map((w, i) => `Semana ${i + 1} (${formatDate(w[0])} a ${formatDate(w[w.length - 1])})`), 'Total do mês', 'Média por dia com lançamento'],
       ...people.map(m => [m.name, ...days.map(date => values.has(`${m.id}:${date}`) ? values.get(`${m.id}:${date}`) : ''), ...weeks.map(w => total(m.id, w)), total(m.id, days), average(m.id).toFixed(2).replace('.', ',')])
     ]
     const blob = new Blob(['\uFEFF' + data.map(row => row.map(quote).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8;' })
@@ -1264,32 +1264,32 @@ function ProductionReport({ company, members }) {
   }
   const cell = { padding: 10, borderBottom: '1px solid #ddd', textAlign: 'right' }
   return <>
-    <h1>CalendÃ¡rio de produÃ§Ã£o</h1>
+    <h1>Calendário de produção</h1>
     <section className="panel">
-      <h2>LanÃ§ar total produzido no dia</h2>
-      <p>Informe o total real de fÃ³rmulas da pessoa nessa data. Um novo lanÃ§amento substitui o total anterior, sem somar novamente.</p>
+      <h2>Lançar total produzido no dia</h2>
+      <p>Informe o total real de fórmulas da pessoa nessa data. Um novo lançamento substitui o total anterior, sem somar novamente.</p>
       <form onSubmit={save}>
-        <label>FuncionÃ¡rio<select required value={person} onChange={e => setPerson(e.target.value)}><option value="">Selecione</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+        <label>Funcionário<select required value={person} onChange={e => setPerson(e.target.value)}><option value="">Selecione</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
         <label>Data<input required type="date" value={day} onChange={e => setDay(e.target.value)} /></label>
-        <label>Total de fÃ³rmulas<input required type="number" min="0" step="1" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>
-        <button disabled={busy}>{busy ? 'Salvandoâ€¦' : 'Salvar total do dia'}</button>
+        <label>Total de fórmulas<input required type="number" min="0" step="1" value={quantity} onChange={e => setQuantity(e.target.value)} /></label>
+        <button disabled={busy}>{busy ? 'Salvando…' : 'Salvar total do dia'}</button>
       </form>
     </section>
     <section className="panel" style={{ marginTop: 20 }}>
-      <label>MÃªs<input type="month" value={month} onChange={e => { if(e.target.value) setMonth(e.target.value) }} /></label>
+      <label>Mês<input type="month" value={month} onChange={e => { if(e.target.value) setMonth(e.target.value) }} /></label>
       <label>Exibir<select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Toda a equipe</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
       <button disabled={!ready} onClick={exportCSV}>Baixar CSV para Excel</button>{' '}
       <button onClick={() => setRefresh(n => n + 1)}>Atualizar</button>
-      <p>Semanas de segunda a domingo, limitadas ao mÃªs escolhido. â€œâ€”â€ significa sem lanÃ§amento; zero Ã© um total registrado. A mÃ©dia considera os dias com lanÃ§amento, inclusive zero.</p>
+      <p>Semanas de segunda a domingo, limitadas ao mês escolhido. “—” significa sem lançamento; zero é um total registrado. A média considera os dias com lançamento, inclusive zero.</p>
       {error && <p role="alert">{error}</p>}
-      {!ready ? <p>{error ? 'RelatÃ³rio indisponÃ­vel. Os totais nÃ£o foram calculados.' : 'Carregando produÃ§Ã£oâ€¦'}</p> : <div role="region" aria-label="CalendÃ¡rio de produÃ§Ã£o" tabIndex={0} style={{ overflowX: 'auto', maxHeight: '65vh' }}>
+      {!ready ? <p>{error ? 'Relatório indisponível. Os totais não foram calculados.' : 'Carregando produção…'}</p> : <div role="region" aria-label="Calendário de produção" tabIndex={0} style={{ overflowX: 'auto', maxHeight: '65vh' }}>
         <table style={{ borderCollapse: 'collapse', whiteSpace: 'nowrap', width: '100%' }}>
-          <caption>ProduÃ§Ã£o real â€” {month}</caption>
-          <thead><tr><th scope="col">FuncionÃ¡rio</th>{days.map(d => <th style={cell} scope="col" key={d}>{d.slice(8)}</th>)}{weeks.map((w,i) => <th style={cell} key={i} scope="col">Semana {i+1} ({w[0].slice(8)}â€“{w[w.length-1].slice(8)})</th>)}<th style={cell} scope="col">Total mÃªs</th><th style={cell} scope="col">MÃ©dia/dia</th></tr></thead>
-          <tbody>{people.map(m => <tr key={m.id}><th scope="row" style={{ ...cell, position: 'sticky', left: 0, background: '#fff', color: '#111', textAlign: 'left' }}>{m.name}</th>{days.map(d => <td key={d} style={cell}>{values.has(`${m.id}:${d}`) ? fmt(values.get(`${m.id}:${d}`)) : 'â€”'}</td>)}{weeks.map((w,i) => <td key={i} style={cell}>{fmt(total(m.id,w))}</td>)}<td style={cell}><strong>{fmt(total(m.id,days))}</strong></td><td style={cell}>{fmt(average(m.id))}</td></tr>)}</tbody>
+          <caption>Produção real — {month}</caption>
+          <thead><tr><th scope="col">Funcionário</th>{days.map(d => <th style={cell} scope="col" key={d}>{d.slice(8)}</th>)}{weeks.map((w,i) => <th style={cell} key={i} scope="col">Semana {i+1} ({w[0].slice(8)}–{w[w.length-1].slice(8)})</th>)}<th style={cell} scope="col">Total mês</th><th style={cell} scope="col">Média/dia</th></tr></thead>
+          <tbody>{people.map(m => <tr key={m.id}><th scope="row" style={{ ...cell, position: 'sticky', left: 0, background: '#fff', color: '#111', textAlign: 'left' }}>{m.name}</th>{days.map(d => <td key={d} style={cell}>{values.has(`${m.id}:${d}`) ? fmt(values.get(`${m.id}:${d}`)) : '—'}</td>)}{weeks.map((w,i) => <td key={i} style={cell}>{fmt(total(m.id,w))}</td>)}<td style={cell}><strong>{fmt(total(m.id,days))}</strong></td><td style={cell}>{fmt(average(m.id))}</td></tr>)}</tbody>
           <tfoot><tr><th scope="row">Total equipe exibida</th>{[...days.map(d => [d]), ...weeks, days].map((dates,i) => <td style={cell} key={i}>{fmt(people.reduce((sum,m) => sum + total(m.id,dates),0))}</td>)}<td /></tr></tfoot>
         </table>
-        {!people.length && <p>Cadastre os funcionÃ¡rios na aba Equipe.</p>}
+        {!people.length && <p>Cadastre os funcionários na aba Equipe.</p>}
       </div>}
     </section>
   </>
